@@ -125,6 +125,14 @@ ws.on('finish', () => {
   (Alpine.store('waveform') as Waveform).playing = false;
 })
 
+regions.on('region-update', (_) => {
+  console.log('update')
+})
+
+regions.on('region-updated', (_) => {
+  console.log('updated')
+})
+
 window.addEventListener('region-updated', ((e: CustomEventInit<Region>) => {
   var r = regions.getRegions().find((r, _) => r.id == e.detail?.id)
   if(r && r.content)
@@ -177,6 +185,24 @@ window.addEventListener('shunt-region-right', ((e: CustomEventInit<string>) => {
       r.setOptions({
         start: r.start + length,
         end: r.end + length
+      })
+    }
+  }
+}) as EventListener)
+
+
+window.addEventListener('copy-region', ((e: CustomEventInit<string>) => {
+  var r = regions.getRegions().find((r, _) => r.id == e.detail)
+  if(r)
+  {
+    var length = r.end - r.start
+    if(r.end + length <= ws.getDuration())
+    {
+      regions.addRegion({
+        start: r.end,
+        end: r.end + length,
+        color: r.color,
+        content: 'Copy'
       })
     }
   }

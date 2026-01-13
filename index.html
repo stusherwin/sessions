@@ -22,6 +22,7 @@
             <button @click="$dispatch('shunt-region-right', region.id)">Shunt &gt;</button>
             <button @click="$dispatch('nudge-region-left', region.id)">&lt; Nudge</button>
             <button @click="$dispatch('nudge-region-right', region.id)">Nudge &gt;</button>
+            <button @click="$dispatch('copy-region', region.id)">Copy</button>
             <button @click="$dispatch('delete-region', region.id)">Delete</button>
           </li>
         </template>
