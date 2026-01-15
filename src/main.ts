@@ -5,10 +5,8 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 
 window.Alpine = Alpine
 
-class Waveform {
+class Player {
   playing: boolean = false
-  regions: Region[] = []
-  currentRegion: string | undefined
   
   init() {
     this.playing = false
@@ -16,40 +14,183 @@ class Waveform {
 
   playPause() {
     this.playing = !this.playing;
-  }
-
-  createRegion(id: string, name: string) {
-    this.regions = this.regions.concat([new Region(id, name)])
-  }
-
-  deleteRegion(id: string) {
-    this.regions = this.regions.filter((r, _) => r.id != id)
-  }
-
-  getRegion(id: string) {
-    return this.regions.find((r, _) => r.id == id)
+    dispatchEvent(new CustomEvent('sx-player-play-pause', { detail: this }))
   }
 }
 
-class Region {
+class Songs {
+  all: Song[] = []
+  nextSongId: number = 1
+  
+  init() {
+  }
+
+  create(regionId: string, name: string) {
+    this.all = this.all.concat([new Song(this.nextSongId++ + '', regionId, name, this)])
+  }
+
+  findByRegion(regionId: string) : Song | Section | undefined {
+    var found = undefined as Song | Section | undefined
+    for(var i = 0; i < this.all.length; i++) {
+      let song = this.all[i]
+      if(song.regionId === regionId) {
+        found = song
+        break
+      } else {
+        for(var j = 0; j < song.sections.length; j++) {
+          let section = song.sections[j]
+          if(section.regionId === regionId) {
+            found = section
+            break
+          }
+        }
+      }
+    }
+    return found
+  }
+
+  setCurrent(regionId: string) {
+    this.all.forEach(song => {
+      var currentSong = song.regionId === regionId
+      song.sections.forEach(section => {
+        section.current = section.regionId === regionId
+        if(section.current) {
+          currentSong = true
+        }        
+      })
+      song.current = currentSong
+    })
+  }
+
+  songSelected(songId: string) {
+    for(var i = 0; i < this.all.length; i++) {
+      if(this.all[i].id !== songId) {
+        this.all[i].deselect()
+      }
+    }
+  }
+
+  songRemoved(songId: string) {
+    this.all = this.all.filter((s, _) => s.id !== songId)
+  }
+}
+
+class Song {
   id: string
+  regionId: string
   _name: string
-  loop:boolean
+  loop: boolean = false
+  current: boolean = false
+  selected: boolean = false
+  sections: Section[] = []
+  songs: Songs
+  nextSectionId: number = 1
+
+  constructor(id: string, regionId: string, name: string, songs: Songs) {
+    this.id = id
+    this.regionId = regionId
+    this._name = name
+    this.songs = songs
+    this.select()
+  }
+
   get name() {
     return this._name
   }
+
   set name(value: string) {
     this._name = value
-    dispatchEvent(new CustomEvent('region-updated', { detail: this }))
+    dispatchEvent(new CustomEvent('sx-region-name-updated', { detail: this }))
   }
-  constructor(id: string, name: string) {
+
+  playFromStart() {
+    dispatchEvent(new CustomEvent('sx-region-play-from-start', { detail: this.regionId }))
+  }
+
+  select() {
+    this.selected = true
+    dispatchEvent(new CustomEvent('sx-region-selected', { detail: this.regionId }))
+    this.songs.songSelected(this.id)
+  }
+
+  deselect() {
+    this.selected = false
+    dispatchEvent(new CustomEvent('sx-region-deselected', { detail: this.regionId }))
+  }
+
+  sectionSelected(sectionId: string) {
+    for(var i = 0; i < this.sections.length; i++) {
+      if(this.sections[i].id !== sectionId) {
+        this.sections[i].deselect()
+      }
+    }
+  }
+
+  sectionRemoved(sectionId: string) {
+    this.sections = this.sections.filter((s, _) => s.id !== sectionId)
+  }
+
+  remove() {
+    let sections = [...this.sections]
+    for(var i = 0; i < sections.length; i++) {
+      let section = sections[i]
+      section.remove()
+    }
+    dispatchEvent(new CustomEvent('sx-region-deleted', { detail: this.regionId }))
+    this.songs.songRemoved(this.id)
+  }
+
+}
+
+class Section {
+  id: string
+  regionId: string
+  _name: string
+  loop: boolean = false
+  current: boolean = false
+  selected: boolean = false
+  song: Song
+
+  constructor(id: string, regionId: string, name: string, song: Song) {
     this.id = id
+    this.regionId = regionId
     this._name = name
-    this.loop = false
+    this.song = song
+    this.select()
+  }
+
+  get name() {
+    return this._name
+  }
+
+  set name(value: string) {
+    this._name = value
+    dispatchEvent(new CustomEvent('sx-region-name-updated', { detail: this }))
+  }
+
+  select() {
+    this.selected = true
+    dispatchEvent(new CustomEvent('sx-region-selected', { detail: this }))
+    this.song.sectionSelected(this.id)
+  }
+
+  deselect() {
+    this.selected = false
+    dispatchEvent(new CustomEvent('sx-region-deselected', { detail: this }))
+  }
+
+  playFromStart() {
+    dispatchEvent(new CustomEvent('sx-region-play-from-start', { detail: this.regionId }))
+  }
+
+  remove() {
+    dispatchEvent(new CustomEvent('sx-region-deleted', { detail: this.regionId }))
+    this.song.sectionRemoved(this.id)
   }
 }
 
-Alpine.store('waveform', new Waveform())
+Alpine.store('player', new Player())
+Alpine.store('songs', new Songs())
 
 Alpine.start()
 
@@ -63,66 +204,60 @@ const ws = WaveSurfer.create({
   plugins: [regions],
 })
 
-window.addEventListener('play-pause', _ => {
+ws.on('decode', () => {
+})
+
+window.addEventListener('sx-player-play-pause', _ => {
   ws.playPause();
 })
 
-const random = (min: number, max: number) => Math.random() * (max - min) + min
-const randomColor = () => `rgba(${random(0, 255)}, ${random(0, 255)}, ${random(0, 255)}, 0.5)`
+ws.on('play', () => {
+  let player = Alpine.store('player') as Player
+  player.playing = true;
+})
 
-ws.on('decode', () => {
-  // Regions
-  regions.addRegion({
-    start: 0,
-    end: 8,
-    content: 'Resize me',
-    color: randomColor(),
-    drag: true,
-    resize: true,
-  })
+ws.on('pause', () => {
+  let player = Alpine.store('player') as Player
+  player.playing = false;
+})
+
+ws.on('finish', () => {
+  let player = Alpine.store('player') as Player
+  player.playing = false;
 })
 
 regions.enableDragSelection({
-  content: 'New region',
+  content: 'New song',
   color: 'rgba(255, 0, 0, 0.1)',
 })
 
-regions.on('region-clicked', (region, e) => {
-  e.stopPropagation()
-  region.play(true)
-  region.setOptions({ color: randomColor() })
+regions.on('region-clicked', (region) => {
+  let songs = Alpine.store('songs') as Songs
+  var r = songs.findByRegion(region.id)
+  if(r) {
+    r.select()
+  }
 })
 
 regions.on('region-in', (region) => {
-  (Alpine.store('waveform') as Waveform).currentRegion = region.id
+  let songs = Alpine.store('songs') as Songs
+  songs.setCurrent(region.id)
 })
 
 regions.on('region-out', (region) => {
-  var wf = Alpine.store('waveform') as Waveform
-  var r = wf.getRegion(region.id)
-  if(r && r.loop && wf.currentRegion == region.id) {
+  let songs = Alpine.store('songs') as Songs
+  var r = songs.findByRegion(region.id)
+  if(r && r.loop && r.current) {
     region.play(true)
   }
-  else if(wf.currentRegion == region.id)
-  {
-    wf.currentRegion = undefined
+  else if(r && r.current) {
+    r.current = false
   }
 })
 
 regions.on('region-created', (region) => {
-  (Alpine.store('waveform') as Waveform).createRegion(region.id, region.content?.innerText || '');
-})
-
-ws.on('play', () => {
-  (Alpine.store('waveform') as Waveform).playing = true;
-})
-
-ws.on('pause', () => {
-  (Alpine.store('waveform') as Waveform).playing = false;
-})
-
-ws.on('finish', () => {
-  (Alpine.store('waveform') as Waveform).playing = false;
+  let songs = Alpine.store('songs') as Songs
+  songs.create(region.id, region.content?.innerText || '');
 })
 
 regions.on('region-update', (_) => {
@@ -133,29 +268,42 @@ regions.on('region-updated', (_) => {
   console.log('updated')
 })
 
-window.addEventListener('region-updated', ((e: CustomEventInit<Region>) => {
-  var r = regions.getRegions().find((r, _) => r.id == e.detail?.id)
-  if(r && r.content)
-  {
-    r.content.innerText = e.detail?.name || ''
+window.addEventListener('sx-region-name-updated', ((e: CustomEventInit<Song>) => {
+  var r = regions.getRegions().find((r, _) => r.id == e.detail?.regionId)
+  if(r) {
+    r.setContent(e.detail?.name || '')
   }
 }) as EventListener)
 
-window.addEventListener('play-region', ((e: CustomEventInit<string>) => {
+window.addEventListener('sx-region-play-from-start', ((e: CustomEventInit<string>) => {
   var r = regions.getRegions().find((r, _) => r.id == e.detail)
-  if(r)
-  {
+  if(r) {
     r.play(true)
   }
 }) as EventListener)
 
-
-window.addEventListener('delete-region', ((e: CustomEventInit<string>) => {
+window.addEventListener('sx-region-deleted', ((e: CustomEventInit<string>) => {
   var r = regions.getRegions().find((r, _) => r.id == e.detail)
-  if(r)
-  {
+  if(r) {
     r.remove();
-    (Alpine.store('waveform') as Waveform).deleteRegion(r.id)
+  }
+}) as EventListener)
+
+window.addEventListener('sx-region-selected', ((e: CustomEventInit<string>) => {
+  var r = regions.getRegions().find((r, _) => r.id == e.detail)
+  if(r) {
+    r.setOptions({
+      color: 'rgba(255, 0, 0, 0.1)'
+    })
+  }
+}) as EventListener)
+
+window.addEventListener('sx-region-deselected', ((e: CustomEventInit<string>) => {
+  var r = regions.getRegions().find((r, _) => r.id == e.detail)
+  if(r) {
+    r.setOptions({
+      color: 'rgba(0, 0, 0, 0.1)'
+    })
   }
 }) as EventListener)
 
@@ -203,6 +351,26 @@ window.addEventListener('copy-region', ((e: CustomEventInit<string>) => {
         end: r.end + length,
         color: r.color,
         content: 'Copy'
+      })
+    }
+  }
+}) as EventListener)
+
+window.addEventListener('split-region', ((e: CustomEventInit<string>) => {
+  var r = regions.getRegions().find((r, _) => r.id == e.detail)
+  if(r) {
+    var splitPoint = ws.getCurrentTime()
+    var end = r.end
+    if(r.start < splitPoint && splitPoint < r.end) {
+      r.setOptions({
+        end: splitPoint,
+        content: 'Before split'
+      })
+      regions.addRegion({
+        start: splitPoint,
+        end: end,
+        color: r.color,
+        content: 'After split'
       })
     }
   }

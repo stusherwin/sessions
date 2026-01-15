@@ -8,25 +8,30 @@
   </head>
   <body>
     <div id="waveform"></div>
+    <button @click="$store.player.playFromStart()">Play from start</button>
+    <button @click="$store.player.playPause()" x-text="$store.player.playing ? 'Pause' : 'Play'">Play / pause</button>
+
     <div x-data x-id="['loop']">
-      <button @click="$dispatch('play-pause')" x-text="$store.waveform.playing ? 'Pause' : 'Play'">Play / pause</button>
-      <ul>
-        <template x-for="region in $store.waveform.regions">
-          <li>
-            <input type="text" x-model="region.name" />
-            <span x-show="$store.waveform.currentRegion == region.id">(Current)</span>
-            <button @click="$dispatch('play-region', region.id)">Play</button>
-            <input :id="$id('loop', region.id)" type="checkbox" x-model="region.loop" />
-            <label :for="$id('loop', region.id)">Loop</label>
-            <button @click="$dispatch('shunt-region-left', region.id)">&lt; Shunt</button>
-            <button @click="$dispatch('shunt-region-right', region.id)">Shunt &gt;</button>
-            <button @click="$dispatch('nudge-region-left', region.id)">&lt; Nudge</button>
-            <button @click="$dispatch('nudge-region-right', region.id)">Nudge &gt;</button>
-            <button @click="$dispatch('copy-region', region.id)">Copy</button>
-            <button @click="$dispatch('delete-region', region.id)">Delete</button>
-          </li>
+        <template x-for="song in $store.songs.all" :key="song.id">
+          <div x-data="song">
+            <div x-show="!selected" x-text="name" @click="select()"></div>
+            <div x-show="selected">
+              <input type="text" x-model="name" />
+              <button @click="playFromStart()">Play from start</button>
+              <button @click="$store.player.playPause()" x-text="$store.player.playing ? 'Pause' : 'Play'">Play / pause</button>
+              <input :id="$id('loop', regionId)" type="checkbox" x-model="loop" />
+              <label :for="$id('loop', regionId)">Loop</label>
+              <button @click="remove()">Delete</button>
+              <!-- <button @click="$dispatch('shunt-region-left', region.id)">&lt; Shunt</button>
+              <button @click="$dispatch('shunt-region-right', region.id)">Shunt &gt;</button>
+              <button @click="$dispatch('nudge-region-left', region.id)">&lt; Nudge</button>
+              <button @click="$dispatch('nudge-region-right', region.id)">Nudge &gt;</button>
+              <button @click="$dispatch('copy-region', region.id)">Copy</button>
+              <button @click="$dispatch('split-region', region.id)">Split</button>
+              <button @click="delete()">Delete</button>-->
+            </div>
+          </div>
         </template>
-      </ul>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
