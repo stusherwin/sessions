@@ -12,8 +12,11 @@ class Player {
     this.playing = false
   }
 
+  playFromStart() {
+    dispatchEvent(new CustomEvent('sx-player-play-from-start', { detail: this }))
+  }
+
   playPause() {
-    this.playing = !this.playing;
     dispatchEvent(new CustomEvent('sx-player-play-pause', { detail: this }))
   }
 }
@@ -25,8 +28,21 @@ class Songs {
   init() {
   }
 
-  create(regionId: string, name: string) {
-    this.all = this.all.concat([new Song(this.nextSongId++ + '', regionId, name, this)])
+  create(regionId: string, startTime: number, endTime: number) {
+    for(var j = 0; j < this.all.length; j++) {
+      var s = this.all[j]
+      console.log(j + ': ' + s.name + ' (' + s.startTime + ' - ' + s.endTime + ')')
+    }
+
+    let i = this.all.findIndex(s => s.startTime > startTime)
+    let id = '' + this.nextSongId++
+    var song = new Song(id, regionId, 'Song ' + id, startTime, endTime, this)
+    console.log(song.name + ' (' + song.startTime + ' - ' + song.endTime + ')')
+    console.log(i)
+
+    this.all = i > -1
+      ? this.all.slice(0, i).concat(song, this.all.slice(i))
+      : this.all.concat(song)
   }
 
   findByRegion(regionId: string) : Song | Section | undefined {
@@ -79,6 +95,8 @@ class Song {
   id: string
   regionId: string
   _name: string
+  startTime: number
+  endTime: number
   loop: boolean = false
   current: boolean = false
   selected: boolean = false
@@ -86,12 +104,15 @@ class Song {
   songs: Songs
   nextSectionId: number = 1
 
-  constructor(id: string, regionId: string, name: string, songs: Songs) {
+  constructor(id: string, regionId: string, name: string, startTime: number, endTime: number, songs: Songs) {
     this.id = id
     this.regionId = regionId
     this._name = name
     this.songs = songs
+    this.startTime = startTime
+    this.endTime = endTime
     this.select()
+    dispatchEvent(new CustomEvent('sx-region-name-updated', { detail: this }))
   }
 
   get name() {
@@ -116,6 +137,16 @@ class Song {
   deselect() {
     this.selected = false
     dispatchEvent(new CustomEvent('sx-region-deselected', { detail: this.regionId }))
+  }
+
+  split(splitPoint: number, regionAId: string, regionBId: string) {
+    if(!this.sections.length) {
+      if(this.startTime < splitPoint && splitPoint < this.endTime) {
+        var a = new Section(this.nextSectionId++ + '', regionAId, 'A', this.startTime, splitPoint, this)
+        var b = new Section(this.nextSectionId++ + '', regionBId, 'B', splitPoint, this.endTime, this)
+        this.sections = [a, b]
+      }
+    }
   }
 
   sectionSelected(sectionId: string) {
@@ -146,16 +177,20 @@ class Section {
   id: string
   regionId: string
   _name: string
+  startTime: number
+  endTime: number
   loop: boolean = false
   current: boolean = false
   selected: boolean = false
   song: Song
 
-  constructor(id: string, regionId: string, name: string, song: Song) {
+  constructor(id: string, regionId: string, name: string, startTime: number, endTime: number, song: Song) {
     this.id = id
     this.regionId = regionId
     this._name = name
     this.song = song
+    this.startTime = startTime
+    this.endTime = endTime
     this.select()
   }
 
@@ -211,6 +246,11 @@ window.addEventListener('sx-player-play-pause', _ => {
   ws.playPause();
 })
 
+window.addEventListener('sx-player-play-from-start', _ => {
+  ws.setTime(0);
+  ws.play();
+})
+
 ws.on('play', () => {
   let player = Alpine.store('player') as Player
   player.playing = true;
@@ -226,10 +266,18 @@ ws.on('finish', () => {
   player.playing = false;
 })
 
+console.log('regions.enableDragSelection()')
+
 regions.enableDragSelection({
-  content: 'New song',
+  // content: 'Song X',
   color: 'rgba(255, 0, 0, 0.1)',
+  drag: false
 })
+
+// regions.enableDragSelection({
+//   //content: 'Song Y',
+//   color: 'rgba(255, 0, 0, 0.1)',
+// })
 
 regions.on('region-clicked', (region) => {
   let songs = Alpine.store('songs') as Songs
@@ -255,9 +303,12 @@ regions.on('region-out', (region) => {
   }
 })
 
+var splitting = false
 regions.on('region-created', (region) => {
   let songs = Alpine.store('songs') as Songs
-  songs.create(region.id, region.content?.innerText || '');
+  if(!splitting) {
+    songs.create(region.id, region.start, region.end);
+  }
 })
 
 regions.on('region-update', (_) => {
@@ -356,24 +407,55 @@ window.addEventListener('copy-region', ((e: CustomEventInit<string>) => {
   }
 }) as EventListener)
 
-window.addEventListener('split-region', ((e: CustomEventInit<string>) => {
-  var r = regions.getRegions().find((r, _) => r.id == e.detail)
-  if(r) {
-    var splitPoint = ws.getCurrentTime()
-    var end = r.end
-    if(r.start < splitPoint && splitPoint < r.end) {
-      r.setOptions({
-        end: splitPoint,
-        content: 'Before split'
-      })
-      regions.addRegion({
-        start: splitPoint,
-        end: end,
-        color: r.color,
-        content: 'After split'
-      })
+window.addEventListener('sx-split', ((e: CustomEventInit<string>) => {
+  splitting = true
+  var splitPoint = ws.getCurrentTime()
+  let songs = Alpine.store('songs') as Songs
+  var s = songs.findByRegion(e.detail || '')
+  if(s instanceof Song) {
+    if(s.startTime < splitPoint && splitPoint < s.endTime) {
+      if(!s.sections.length) {
+        var r = regions.getRegions().find((r, _) => r.id == e.detail)
+        if(r) {
+          if(r.start < splitPoint && splitPoint < r.end) {
+            var regionA = regions.addRegion({
+              start: r.start,
+              end: splitPoint,
+              color: r.color,
+              content: 'A',
+              drag: false
+            })
+            var regionB = regions.addRegion({
+              start: splitPoint,
+              end: r.end,
+              color: r.color,
+              content: 'B',
+              drag: false
+            })
+            s.split(splitPoint, regionA.id, regionB.id)
+          }
+        }        
+      }
     }
+    splitting = false
   }
+
+  // var r = regions.getRegions().find((r, _) => r.id == e.detail)
+  // if(r) {
+  //   var end = r.end
+  //   if(r.start < splitPoint && splitPoint < r.end) {
+  //     r.setOptions({
+  //       end: splitPoint,
+  //       content: 'Before split'
+  //     })
+  //     regions.addRegion({
+  //       start: splitPoint,
+  //       end: end,
+  //       color: r.color,
+  //       content: 'After split'
+  //     })
+  //   }
+  // }
 }) as EventListener)
 
 const nudge = 0.05
