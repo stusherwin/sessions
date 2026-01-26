@@ -11,11 +11,15 @@
   "devDependencies": {
     "@types/alpinejs": "^3.13.11",
     "@types/wavesurfer.js": "^6.0.12",
+    "sass": "^1.97.2",
     "typescript": "~5.9.3",
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
     "alpinejs": "^3.15.3",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
     "wavesurfer.js": "^7.12.1"
   }
 }

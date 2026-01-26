@@ -1,7 +1,17 @@
-import './style.css'
+// import './style.css'
 import Alpine from 'alpinejs'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
+import '../scss/styles.scss'
+import iconsRaw from 'bootstrap-icons/bootstrap-icons.svg?raw'
+
+// Import all of Bootstrap’s JS
+//import * as bootstrap from 'bootstrap'
+
+var allSvg = document.getElementById('all')
+if(allSvg) {
+  allSvg.innerHTML = iconsRaw;
+}
 
 window.Alpine = Alpine
 
@@ -16,6 +26,14 @@ class Player {
     dispatchEvent(new CustomEvent('sx-player-play-from-start', { detail: this }))
   }
 
+  skipToStart() {
+    dispatchEvent(new CustomEvent('sx-player-skip-to-start', { detail: this }))
+  }
+
+  skipToEnd() {
+    dispatchEvent(new CustomEvent('sx-player-skip-to-end', { detail: this }))
+  }
+
   playPause() {
     dispatchEvent(new CustomEvent('sx-player-play-pause', { detail: this }))
   }
@@ -28,34 +46,36 @@ class Songs {
   init() {
   }
 
-  create(regionId: string, startTime: number, endTime: number) {
+  create(startTime: number, endTime: number) {
     for(var j = 0; j < this.all.length; j++) {
       var s = this.all[j]
       console.log(j + ': ' + s.name + ' (' + s.startTime + ' - ' + s.endTime + ')')
     }
 
     let i = this.all.findIndex(s => s.startTime > startTime)
-    let id = '' + this.nextSongId++
-    var song = new Song(id, regionId, 'Song ' + id, startTime, endTime, this)
+    let id = 'song-' + this.nextSongId++
+    var song = new Song(id, 'Song ' + id, startTime, endTime, this)
     console.log(song.name + ' (' + song.startTime + ' - ' + song.endTime + ')')
     console.log(i)
 
     this.all = i > -1
       ? this.all.slice(0, i).concat(song, this.all.slice(i))
       : this.all.concat(song)
+      
+    return id
   }
 
   findByRegion(regionId: string) : Song | Section | undefined {
     var found = undefined as Song | Section | undefined
     for(var i = 0; i < this.all.length; i++) {
       let song = this.all[i]
-      if(song.regionId === regionId) {
+      if(song.id === regionId) {
         found = song
         break
       } else {
         for(var j = 0; j < song.sections.length; j++) {
           let section = song.sections[j]
-          if(section.regionId === regionId) {
+          if(section.id === regionId) {
             found = section
             break
           }
@@ -67,9 +87,9 @@ class Songs {
 
   setCurrent(regionId: string) {
     this.all.forEach(song => {
-      var currentSong = song.regionId === regionId
+      var currentSong = song.id === regionId
       song.sections.forEach(section => {
-        section.current = section.regionId === regionId
+        section.current = section.id === regionId
         if(section.current) {
           currentSong = true
         }        
@@ -93,7 +113,6 @@ class Songs {
 
 class Song {
   id: string
-  regionId: string
   _name: string
   startTime: number
   endTime: number
@@ -104,9 +123,8 @@ class Song {
   songs: Songs
   nextSectionId: number = 1
 
-  constructor(id: string, regionId: string, name: string, startTime: number, endTime: number, songs: Songs) {
+  constructor(id: string, name: string, startTime: number, endTime: number, songs: Songs) {
     this.id = id
-    this.regionId = regionId
     this._name = name
     this.songs = songs
     this.startTime = startTime
@@ -125,26 +143,37 @@ class Song {
   }
 
   playFromStart() {
-    dispatchEvent(new CustomEvent('sx-region-play-from-start', { detail: this.regionId }))
+    console.log('song.playFromStart()')
+
+    dispatchEvent(new CustomEvent('sx-region-play-from-start', { detail: this.id }))
+  }
+
+  skipToStart() {
+    dispatchEvent(new CustomEvent('sx-region-skip-to-start', { detail: this.id }))
+  }
+
+  skipToEnd() {
+    dispatchEvent(new CustomEvent('sx-region-skip-to-end', { detail: this.id }))
   }
 
   select() {
     this.selected = true
-    dispatchEvent(new CustomEvent('sx-region-selected', { detail: this.regionId }))
+    dispatchEvent(new CustomEvent('sx-region-selected', { detail: this.id }))
     this.songs.songSelected(this.id)
   }
 
   deselect() {
     this.selected = false
-    dispatchEvent(new CustomEvent('sx-region-deselected', { detail: this.regionId }))
+    dispatchEvent(new CustomEvent('sx-region-deselected', { detail: this.id }))
   }
 
-  split(splitPoint: number, regionAId: string, regionBId: string) {
+  split(splitPoint: number) {
     if(!this.sections.length) {
       if(this.startTime < splitPoint && splitPoint < this.endTime) {
-        var a = new Section(this.nextSectionId++ + '', regionAId, 'A', this.startTime, splitPoint, this)
-        var b = new Section(this.nextSectionId++ + '', regionBId, 'B', splitPoint, this.endTime, this)
+        var a = new Section('section-' + this.nextSectionId++, 'A', this.startTime, splitPoint, this)
+        var b = new Section('section-' + this.nextSectionId++, 'B', splitPoint, this.endTime, this)
         this.sections = [a, b]
+        return {aId: a.id, bId: b.id}
       }
     }
   }
@@ -167,7 +196,7 @@ class Song {
       let section = sections[i]
       section.remove()
     }
-    dispatchEvent(new CustomEvent('sx-region-deleted', { detail: this.regionId }))
+    dispatchEvent(new CustomEvent('sx-region-deleted', { detail: this.id }))
     this.songs.songRemoved(this.id)
   }
 
@@ -175,7 +204,6 @@ class Song {
 
 class Section {
   id: string
-  regionId: string
   _name: string
   startTime: number
   endTime: number
@@ -184,9 +212,8 @@ class Section {
   selected: boolean = false
   song: Song
 
-  constructor(id: string, regionId: string, name: string, startTime: number, endTime: number, song: Song) {
+  constructor(id: string, name: string, startTime: number, endTime: number, song: Song) {
     this.id = id
-    this.regionId = regionId
     this._name = name
     this.song = song
     this.startTime = startTime
@@ -215,11 +242,20 @@ class Section {
   }
 
   playFromStart() {
-    dispatchEvent(new CustomEvent('sx-region-play-from-start', { detail: this.regionId }))
+    console.log('section.playFromStart()')
+    dispatchEvent(new CustomEvent('sx-region-play-from-start', { detail: this.id }))
+  }
+
+  skipToStart() {
+    dispatchEvent(new CustomEvent('sx-region-skip-to-start', { detail: this.id }))
+  }
+
+  skipToEnd() {
+    dispatchEvent(new CustomEvent('sx-region-skip-to-end', { detail: this.id }))
   }
 
   remove() {
-    dispatchEvent(new CustomEvent('sx-region-deleted', { detail: this.regionId }))
+    dispatchEvent(new CustomEvent('sx-region-deleted', { detail: this.id }))
     this.song.sectionRemoved(this.id)
   }
 }
@@ -235,7 +271,7 @@ const ws = WaveSurfer.create({
   container: '#waveform',
   waveColor: '#4F4A85',
   progressColor: '#383351',
-  url: '/example.mp3',
+  url: '/session1.mp3',
   plugins: [regions],
 })
 
@@ -249,6 +285,14 @@ window.addEventListener('sx-player-play-pause', _ => {
 window.addEventListener('sx-player-play-from-start', _ => {
   ws.setTime(0);
   ws.play();
+})
+
+window.addEventListener('sx-player-skip-to-start', _ => {
+  ws.setTime(0);
+})
+
+window.addEventListener('sx-player-skip-to-end', _ => {
+  ws.seekTo(1);
 })
 
 ws.on('play', () => {
@@ -270,7 +314,7 @@ console.log('regions.enableDragSelection()')
 
 regions.enableDragSelection({
   // content: 'Song X',
-  color: 'rgba(255, 0, 0, 0.1)',
+  color: 'rgba(206.6, 226, 254.6, 0.5)',
   drag: false
 })
 
@@ -288,11 +332,13 @@ regions.on('region-clicked', (region) => {
 })
 
 regions.on('region-in', (region) => {
+  console.log('in: ' + region.id)
   let songs = Alpine.store('songs') as Songs
   songs.setCurrent(region.id)
 })
 
 regions.on('region-out', (region) => {
+  console.log('out: ' + region.id)
   let songs = Alpine.store('songs') as Songs
   var r = songs.findByRegion(region.id)
   if(r && r.loop && r.current) {
@@ -307,20 +353,38 @@ var splitting = false
 regions.on('region-created', (region) => {
   let songs = Alpine.store('songs') as Songs
   if(!splitting) {
-    songs.create(region.id, region.start, region.end);
+    let id = songs.create(region.start, region.end);
+    region.setOptions({ id : id })
+    ws.setTime(region.start);
   }
 })
 
-regions.on('region-update', (_) => {
-  console.log('update')
+regions.on('region-update', (region) => {
+  console.log('updating ' + region.id)
+  if(region.element?.part.contains('sx-section')) {
+    if(region.element?.dataset.prevNeighbour) {
+        var prev = regions.getRegions().find((r, _) => r.id == region.element?.dataset.prevNeighbour)
+        if(prev && region.start != prev.end) {
+          prev.setOptions({end : region.start})
+          prev.element?.part.add('sx-section')
+        }
+    }
+    if(region.element?.dataset.nextNeighbour) {
+      var next = regions.getRegions().find((r, _) => r.id == region.element?.dataset.nextNeighbour)
+      if(next && region.end != next.start) {
+        next.setOptions({start : region.end})
+        next.element?.part.add('sx-section')
+      }
+    }
+  }
 })
 
-regions.on('region-updated', (_) => {
+regions.on('region-updated', (region) => {
   console.log('updated')
 })
 
 window.addEventListener('sx-region-name-updated', ((e: CustomEventInit<Song>) => {
-  var r = regions.getRegions().find((r, _) => r.id == e.detail?.regionId)
+  var r = regions.getRegions().find((r, _) => r.id == e.detail?.id)
   if(r) {
     r.setContent(e.detail?.name || '')
   }
@@ -329,7 +393,21 @@ window.addEventListener('sx-region-name-updated', ((e: CustomEventInit<Song>) =>
 window.addEventListener('sx-region-play-from-start', ((e: CustomEventInit<string>) => {
   var r = regions.getRegions().find((r, _) => r.id == e.detail)
   if(r) {
-    r.play(true)
+    r.play()
+  }
+}) as EventListener)
+
+window.addEventListener('sx-region-skip-to-start', ((e: CustomEventInit<string>) => {
+  var r = regions.getRegions().find((r, _) => r.id == e.detail)
+  if(r) {
+    ws.setTime(r.start)
+  }
+}) as EventListener)
+
+window.addEventListener('sx-region-skip-to-end', ((e: CustomEventInit<string>) => {
+  var r = regions.getRegions().find((r, _) => r.id == e.detail)
+  if(r) {
+    ws.setTime(r.end)
   }
 }) as EventListener)
 
@@ -344,7 +422,7 @@ window.addEventListener('sx-region-selected', ((e: CustomEventInit<string>) => {
   var r = regions.getRegions().find((r, _) => r.id == e.detail)
   if(r) {
     r.setOptions({
-      color: 'rgba(255, 0, 0, 0.1)'
+      color: 'rgba(206.6, 226, 254.6, 0.5)',
     })
   }
 }) as EventListener)
@@ -418,23 +496,43 @@ window.addEventListener('sx-split', ((e: CustomEventInit<string>) => {
         var r = regions.getRegions().find((r, _) => r.id == e.detail)
         if(r) {
           if(r.start < splitPoint && splitPoint < r.end) {
-            var regionA = regions.addRegion({
-              start: r.start,
-              end: splitPoint,
-              color: r.color,
-              content: 'A',
-              drag: false
-            })
-            var regionB = regions.addRegion({
-              start: splitPoint,
-              end: r.end,
-              color: r.color,
-              content: 'B',
-              drag: false
-            })
-            s.split(splitPoint, regionA.id, regionB.id)
+            let ids = s.split(splitPoint)
+            if(ids) {
+              var regionA = regions.addRegion({
+                start: r.start,
+                end: splitPoint,
+                color: r.color,
+                content: 'A',
+                drag: false,
+                id: ids.aId
+              })
+              if(regionA.content && regionA.element)
+              {
+                regionA.element.part.add('sx-section')
+                regionA.content.part.add('sx-section')
+                regionA.element.dataset.songId = s.id
+                regionA.element.dataset.nextNeighbour = ids.bId
+              }
+              var regionB = regions.addRegion({
+                start: splitPoint,
+                end: r.end,
+                color: r.color,
+                content: 'B',
+                drag: false,
+                id: ids.bId
+              })
+              if(regionB.content && regionB.element)
+              {
+                regionB.element.part.add('sx-section')
+                regionB.content.part.add('sx-section')
+                regionB.element.dataset.songId = s.id
+                regionB.element.dataset.prevNeighbour = ids.aId
+              }
+            }
           }
         }        
+      } else {
+
       }
     }
     splitting = false
