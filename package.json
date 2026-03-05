@@ -16,7 +16,9 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "@alpinejs/persist": "^3.15.8",
     "@popperjs/core": "^2.11.8",
+    "@types/alpinejs__persist": "^3.13.4",
     "alpinejs": "^3.15.3",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",

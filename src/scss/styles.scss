@@ -1,94 +1,197 @@
-// @import "bootstrap/scss/bootstrap";
-// Update the import directory to point to it‘s location within node_modules
-// $bootstrap-icons-font-dir: "bootstrap-icons/font/fonts";
+// $enable-negative-margins: true;
 
-// Import the Sass files as usual
-// @import "bootstrap-icons/font/bootstrap-icons";
-// @import "bootstrap-icons/bootstrap-icons.svg";
+// @import "bootstrap/scss/functions";
 
-$enable-negative-margins: true;
+// $btn-line-height: 1;
 
-@import "bootstrap/scss/functions";
+// @import "bootstrap/scss/variables";
 
-$btn-line-height: 1;
+// $theme-colors: map-merge($theme-colors, (
+//     // 'primary-dark' : shade-color($blue, 20%),
+//     // 'primary-light' : tint-color($blue, 20%),
+//     'purple' : $purple
+//     // 'purple-dark' : shade-color($indigo, 20%),
+//     // 'purple-light' : tint-color($indigo, 10%),
+// ));
 
-@import "bootstrap/scss/variables";
+// $theme-colors-rgb: map-loop($theme-colors, to-rgb, "$value");
 
-$theme-colors: map-merge($theme-colors, (
-    // 'primary-dark' : shade-color($blue, 20%),
-    // 'primary-light' : tint-color($blue, 20%),
-    'purple' : $purple
-    // 'purple-dark' : shade-color($indigo, 20%),
-    // 'purple-light' : tint-color($indigo, 10%),
-));
+// @import "bootstrap/scss/variables-dark";
+// @import "bootstrap/scss/maps";
+// @import "bootstrap/scss/mixins";
+// @import "bootstrap/scss/utilities";
 
-$theme-colors-rgb: map-loop($theme-colors, to-rgb, "$value");
+// $utilities-colors: map-merge($theme-colors, $utilities-colors);
+// $utilities-text-colors: map-loop($utilities-colors, rgba-css-var, "$key", "text");
+// $utilities-bg-colors: map-loop($utilities-colors, rgba-css-var, "$key", "bg");
 
-@import "bootstrap/scss/variables-dark";
-@import "bootstrap/scss/maps";
-@import "bootstrap/scss/mixins";
-@import "bootstrap/scss/utilities";
+// @import "bootstrap/scss/root";
+// @import "bootstrap/scss/reboot";
 
-$utilities-colors: map-merge($theme-colors, $utilities-colors);
-$utilities-text-colors: map-loop($utilities-colors, rgba-css-var, "$key", "text");
-$utilities-bg-colors: map-loop($utilities-colors, rgba-css-var, "$key", "bg");
+// @import "bootstrap/scss/type";
+// // @import "bootstrap/scss/images";
+// @import "bootstrap/scss/containers";
+// // @import "bootstrap/scss/grid";
+// // @import "bootstrap/scss/tables";
+// // @import "bootstrap/scss/forms";
+// @import "bootstrap/scss/buttons";
+// // @import "bootstrap/scss/transitions";
+// // @import "bootstrap/scss/dropdown";
+// // @import "bootstrap/scss/button-group";
+// // @import "bootstrap/scss/nav";
+// // @import "bootstrap/scss/navbar"; // Requires nav
+// @import "bootstrap/scss/card";
+// // @import "bootstrap/scss/breadcrumb";
+// // @import "bootstrap/scss/accordion";
+// // @import "bootstrap/scss/pagination";
+// // @import "bootstrap/scss/badge";
+// // @import "bootstrap/scss/alert";
+// // @import "bootstrap/scss/progress";
+// // @import "bootstrap/scss/list-group";
+// // @import "bootstrap/scss/close";
+// // @import "bootstrap/scss/toasts";
+// // @import "bootstrap/scss/modal"; // Requires transitions
+// // @import "bootstrap/scss/tooltip";
+// // @import "bootstrap/scss/popover";
+// // @import "bootstrap/scss/carousel";
+// // @import "bootstrap/scss/spinners";
+// // @import "bootstrap/scss/offcanvas"; // Requires transitions
+// // @import "bootstrap/scss/placeholders";
 
-@import "bootstrap/scss/root";
-@import "bootstrap/scss/reboot";
+// // Helpers
+// // @import "bootstrap/scss/helpers";
 
-@import "bootstrap/scss/type";
-// @import "bootstrap/scss/images";
-@import "bootstrap/scss/containers";
-// @import "bootstrap/scss/grid";
-// @import "bootstrap/scss/tables";
-// @import "bootstrap/scss/forms";
-@import "bootstrap/scss/buttons";
-// @import "bootstrap/scss/transitions";
-// @import "bootstrap/scss/dropdown";
-// @import "bootstrap/scss/button-group";
-// @import "bootstrap/scss/nav";
-// @import "bootstrap/scss/navbar"; // Requires nav
-@import "bootstrap/scss/card";
-// @import "bootstrap/scss/breadcrumb";
-// @import "bootstrap/scss/accordion";
-// @import "bootstrap/scss/pagination";
-// @import "bootstrap/scss/badge";
-// @import "bootstrap/scss/alert";
-// @import "bootstrap/scss/progress";
-// @import "bootstrap/scss/list-group";
-// @import "bootstrap/scss/close";
-// @import "bootstrap/scss/toasts";
-// @import "bootstrap/scss/modal"; // Requires transitions
-// @import "bootstrap/scss/tooltip";
-// @import "bootstrap/scss/popover";
-// @import "bootstrap/scss/carousel";
-// @import "bootstrap/scss/spinners";
-// @import "bootstrap/scss/offcanvas"; // Requires transitions
-// @import "bootstrap/scss/placeholders";
+// // Utilities
+// @import "bootstrap/scss/utilities/api";
 
-// Helpers
-// @import "bootstrap/scss/helpers";
+/*
+  Josh's Custom CSS Reset
+  https://www.joshwcomeau.com/css/custom-css-reset/
+*/
 
-// Utilities
-@import "bootstrap/scss/utilities/api";
-
-.song {
-    // color: red;
-    &.song-current {
-
-    }
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-.section {
+*:not(dialog) {
+  margin: 0;
+}
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    interpolate-size: allow-keywords;
+  }
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+input, button, textarea, select {
+  font: inherit;
+}
+
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+
+p {
+  text-wrap: pretty;
+}
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  margin-bottom: 20px;
+}
+
+#root, #__next {
+  isolation: isolate;
+}
+
+$waveform-gutter: 30px;
+$handle-size: 20px;
+
+::part(scroll) {
+  padding: $waveform-gutter 0;
+}
+
+::part(regions-container) {
+  top: -$waveform-gutter;
+  bottom: -$waveform-gutter;
+  height: unset;
 }
 
 ::part(region sx-section) {
   /* font-weight: bold; */
 }
 
+::part(region-content) {
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  padding: 2px;
+  display: block;
+  height: 28px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+::part(region-content sx-song) {
+  /* font-weight: bold; */
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 ::part(region-content sx-section) {
   /* font-weight: bold; */
+  padding-top: 0;
+  padding-bottom: 0;
   position: absolute;
   bottom: 0;
+}
+
+::part(region) {
+  border-radius: 0;
+  border-left: 2px solid black;
+  border-right: 2px solid black;
+}
+
+::part(region sx-locked-left) {
+  border-left: 2px dotted black;
+}
+
+::part(region sx-locked-right) {
+  border-right: none;
+}
+
+::part(region-handle) {
+  background: none;
+  border: none;
+  border-radius: 0;
+  width: $handle-size;
+}
+
+::part(region-handle-left) {
+  left: -($handle-size / 2);
+}
+
+::part(region-handle-right) {
+  right: -($handle-size / 2);
+}
+
+::part(region-handle-left sx-locked) {
+  // background: rgba(0 255 0 / 0.1);
+}
+
+::part(region-handle-right sx-locked) {
+  // background: rgba(255 0 0 / 0.1);
 }
