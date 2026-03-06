@@ -31,6 +31,21 @@
           <use href="#skip-end-fill" />
         </svg>
       </button>
+      <button @click="$store.player.zoomIn()">
+        <svg class="bi" width="16" height="16" fill="currentColor">
+          <use href="#zoom-in" />
+        </svg>
+      </button>
+      <button @click="$store.player.zoomOut()">
+        <svg class="bi" width="16" height="16" fill="currentColor">
+          <use href="#zoom-out" />
+        </svg>
+      </button>
+      <button @click="$store.player.toggleAddRegion()" :class="$store.player.adding ? 'inverted' : ''">
+        <svg class="bi" width="16" height="16" fill="currentColor">
+          <use href="#plus" />
+        </svg>
+      </button>
     </div>
 
     <div x-data>

@@ -195,3 +195,12 @@ $handle-size: 20px;
 ::part(region-handle-right sx-locked) {
   // background: rgba(255 0 0 / 0.1);
 }
+
+::part(regions-container) {
+  // touch-action: none;
+}
+
+.inverted {
+  background: black;
+  color: white;
+}
