@@ -14,69 +14,76 @@ if(allSvg) {
 window.Alpine = Alpine
 Alpine.plugin(persist)
 
-class Player {
+class Controls {
   playing: boolean = false
-  adding: boolean = false
-  
+  editing: boolean = false
+
   init() {
     this.playing = false
-    this.adding = false
+    this.editing = false
   }
 
   playFromStart() {
-    dispatchEvent(new CustomEvent('sx-player-play-from-start', { detail: this }))
+    dispatchEvent(new CustomEvent('sx-controls-play-from-start', { detail: this }))
   }
 
   skipToStart() {
-    dispatchEvent(new CustomEvent('sx-player-skip-to-start', { detail: this }))
+    dispatchEvent(new CustomEvent('sx-controls-skip-to-start', { detail: this }))
   }
 
   skipToEnd() {
-    dispatchEvent(new CustomEvent('sx-player-skip-to-end', { detail: this }))
+    dispatchEvent(new CustomEvent('sx-controls-skip-to-end', { detail: this }))
+  }
+
+  skipBackward() {
+    dispatchEvent(new CustomEvent('sx-controls-skip-backward', { detail: this }))
+  }
+
+  skipForward() {
+    dispatchEvent(new CustomEvent('sx-controls-skip-forward', { detail: this }))
   }
 
   playPause() {
-    dispatchEvent(new CustomEvent('sx-player-play-pause', { detail: this }))
+    dispatchEvent(new CustomEvent('sx-controls-play-pause', { detail: this }))
   }
 
   zoomIn() {
-    dispatchEvent(new CustomEvent('sx-player-zoom-in', { detail: this }))
+    dispatchEvent(new CustomEvent('sx-controls-zoom-in', { detail: this }))
   }
 
   zoomOut() {
-    dispatchEvent(new CustomEvent('sx-player-zoom-out', { detail: this }))
+    dispatchEvent(new CustomEvent('sx-controls-zoom-out', { detail: this }))
   }
 
-  toggleAddRegion() {
-    this.adding = !this.adding
-    if(this.adding) {
-      dispatchEvent(new CustomEvent('sx-player-add-region-start', { detail: this }))
+  toggleEditing() {
+    this.editing = !this.editing
+    if(this.editing) {
+      dispatchEvent(new CustomEvent('sx-controls-editing-start', { detail: this }))
     } else {
-      dispatchEvent(new CustomEvent('sx-player-add-region-stop', { detail: this }))
+      dispatchEvent(new CustomEvent('sx-controls-editing-stop', { detail: this }))
     }
   }
 
-  startAdding() {
-    this.adding = true
-    dispatchEvent(new CustomEvent('sx-player-add-region-start', { detail: this }))
-  }
-  stopAdding() {
-    this.adding = false
-    dispatchEvent(new CustomEvent('sx-player-add-region-stop', { detail: this }))
-  }
+  // startAdding() {
+  //   this.adding = true
+  //   dispatchEvent(new CustomEvent('sx-controls-add-region-start', { detail: this }))
+  // }
+  // stopAdding() {
+  //   this.adding = false
+  //   dispatchEvent(new CustomEvent('sx-controls-add-region-stop', { detail: this }))
+  // }
 }
 
+var delta = 2;
 
 class Songs {
   all: Song[] = []
   nextSongId: number = 1
-  
+
   init() {
   }
 
   create(startTime: number, endTime: number) {
-    console.log('create()')
-
     var newSong = new Song('song-' + this.nextSongId, 'Song ' + this.nextSongId, startTime, endTime)
 
     if(!this.all.length) {
@@ -140,7 +147,7 @@ class Songs {
         newAll.push(newSong)
         pushed = true
       //       [ A ]       [ B ]
-      //             <-4-> 
+      //             <-4->
       } else if(!pushed && song.endTime < newSong.startTime && i == this.all.length - 1) {
         newSong.prevNeighbour = new SongNeighbour(song, false)
         newSong.nextNeighbour = song.nextNeighbour
@@ -153,18 +160,29 @@ class Songs {
     this.all = newAll
     this.nextSongId++
 
-    for(i = 0; i < this.all.length; i++) {
-      let song = this.all[i]
-      console.log(song.id)
-      console.log('prev: ' + (song.prevNeighbour ? '(' + song.prevNeighbour.song.id + ', ' + (song.prevNeighbour.locked ? 'locked' : 'unlocked') + ')' : ''))
-      console.log('next: ' + (song.nextNeighbour ? '(' + song.nextNeighbour.song.id + ', ' + (song.nextNeighbour.locked ? 'locked' : 'unlocked') + ')' : ''))
-    }
-      
     return newSong
   }
 
   find(id: string) : Song | undefined {
     return this.all.find(s => s.id == id)
+  }
+
+  findNext(time: number) : Song | undefined {
+    for(var i = 0; i < this.all.length; i++) {
+      var song = this.all[i]
+      if(song.startTime > time) {
+        return song
+      }
+    }
+  }
+
+  findPrevious(time: number) : Song | undefined {
+    for(var i = this.all.length - 1; i >= 0; i--) {
+      var song = this.all[i]
+      if(song.startTime < time - delta) {
+        return song
+      }
+    }
   }
 
   in(id: string) {
@@ -257,7 +275,7 @@ declare global {
 
 window.Song = Song
 
-Alpine.store('player', new Player())
+Alpine.store('controls', new Controls())
 Alpine.store('songs', new Songs())
 Alpine.start()
 
@@ -268,104 +286,150 @@ const ws = WaveSurfer.create({
   waveColor: '#4F4A85',
   progressColor: '#383351',
   url: '/session1.mp3',
-  minPxPerSec: 100,
   plugins: [regions],
 })
 
 ws.once('decode', () => {
-  window.addEventListener('sx-player-play-pause', _ => {
+  window.addEventListener('sx-controls-play-pause', _ => {
     ws.playPause();
   })
 
-  window.addEventListener('sx-player-play-from-start', _ => {
+  window.addEventListener('sx-controls-play-from-start', _ => {
     ws.setTime(0);
     ws.play();
   })
 
-  window.addEventListener('sx-player-skip-to-start', _ => {
+  window.addEventListener('sx-controls-skip-to-start', _ => {
     ws.setTime(0);
   })
 
-  window.addEventListener('sx-player-skip-to-end', _ => {
+  window.addEventListener('sx-controls-skip-to-end', _ => {
     ws.seekTo(1);
   })
 
-  window.addEventListener('sx-player-zoom-in', _ => {
-    var width = document.getElementById('waveform')?.getBoundingClientRect().width
+  var zoomTimeout :  number | undefined = undefined
+  window.addEventListener('sx-controls-zoom-in', _ => {
+    var currentScroll = ws.getScroll()
+    var total = ws.getWrapper().scrollWidth
+    var mid = currentScroll + ws.getWidth() / 2
+    var percent = (mid / total)
+    var width = Math.floor(document.getElementById('waveform')?.getBoundingClientRect().width || Number.MAX_VALUE)
     var duration = ws.getDuration()
-    console.log('width: ' + width)
-    console.log('duration: ' + duration)
-    ws.zoom(ws.options.minPxPerSec * 10)
-    console.log(ws.options.minPxPerSec)
+    var zoomedOut = width / duration
+    var currentLevel = ws.options.minPxPerSec == 0 ? zoomedOut : ws.options.minPxPerSec
+    var targetLevel = Math.min(width, currentLevel * 2)
+    zooming = true
+    clearTimeout(zoomTimeout)
+    ws.zoom(targetLevel)
+    var newTotal = ws.getWrapper().scrollWidth
+    var newMid = percent * newTotal
+    var newScroll = newMid - ws.getWidth() / 2
+    if(editing) {
+      scrollPosition = newScroll
+    }
+    ws.setScroll(newScroll)
+    zoomTimeout = setTimeout(() => zooming = false, 1000)
   })
 
-  window.addEventListener('sx-player-zoom-out', _ => {
-    ws.zoom(ws.options.minPxPerSec / 10)
-    console.log(ws.options.minPxPerSec)
+  window.addEventListener('sx-controls-zoom-out', _ => {
+    var currentScroll = ws.getScroll()
+    var total = ws.getWrapper().scrollWidth
+    var mid = currentScroll + ws.getWidth() / 2
+    var percent = (mid / total)
+    var width = Math.floor(document.getElementById('waveform')?.getBoundingClientRect().width || Number.MAX_VALUE)
+    var duration = ws.getDuration()
+    var zoomedOut = width / duration
+    var currentLevel = ws.options.minPxPerSec == 0 ? zoomedOut : ws.options.minPxPerSec
+    var targetLevel = Math.max(zoomedOut, currentLevel / 2)
+    zooming = true
+    clearTimeout(zoomTimeout)
+    ws.zoom(targetLevel)
+    var newTotal = ws.getWrapper().scrollWidth
+    var newMid = percent * newTotal
+    var newScroll = newMid - ws.getWidth() / 2
+    if(editing) {
+      scrollPosition = newScroll
+    }
+    ws.setScroll(newScroll)
+    zoomTimeout = setTimeout(() => zooming = false, 1000)
+  })
+
+  window.addEventListener('sx-controls-skip-backward', _ => {
+    let songs = Alpine.store('songs') as Songs
+    let song = songs.findPrevious(ws.getCurrentTime());
+    if(song) {
+      ws.setTime(song.startTime);
+    }
+  })
+
+  window.addEventListener('sx-controls-skip-forward', _ => {
+    let songs = Alpine.store('songs') as Songs
+    let song = songs.findNext(ws.getCurrentTime());
+    if(song) {
+      ws.setTime(song.startTime);
+    }
   })
 })
 
-var updating = false 
+var zooming = false
+var editing = false
+var scrollPosition: number | undefined = undefined
 ws.on('scroll', _ => {
-  if(updating && scrollPosition) {
+  if(!zooming && editing && scrollPosition) {
     ws.setScroll(scrollPosition)
     return;
   }
 })
-ws.on('drag', _ => {
-  console.log('drag');
-})
-ws.on('dragstart', _ => {
-  console.log('dragstart');
-})
-ws.on('dragend', _ => {
-  console.log('dragend');
-})
-ws.on('interaction', _ => {
-  console.log('interaction');
-})
-ws.on('click', _ => {
-  console.log('click');
-})
 
 ws.on('play', () => {
-  let player = Alpine.store('player') as Player
-  player.playing = true;
+  let controls = Alpine.store('controls') as Controls
+  controls.playing = true;
 })
 
 ws.on('pause', () => {
-  let player = Alpine.store('player') as Player
-  player.playing = false;
+  let controls = Alpine.store('controls') as Controls
+  controls.playing = false;
 })
 
 ws.on('finish', () => {
-  let player = Alpine.store('player') as Player
-  player.playing = false;
+  let controls = Alpine.store('controls') as Controls
+  controls.playing = false;
 })
 
 var disableDragSelection : (() => void) | undefined = undefined
+window.addEventListener('sx-controls-editing-start', ((e: CustomEventInit<RegionNameUpdate>) => {
+  editing = true
+  scrollPosition = ws.getScroll()
 
-window.addEventListener('sx-player-add-region-start', ((e: CustomEventInit<RegionNameUpdate>) => {
-  if(!updating) {
-    updating = true
-    scrollPosition = ws.getScroll()
-    console.log('scrollPosition: ' + scrollPosition)
-  }
+  ws.setOptions({autoScroll: false})
 
   disableDragSelection = regions.enableDragSelection({
     color: 'rgba(206.6, 226, 254.6, 0.5)',
     drag: false
   })
+
+  var rs = regions.getRegions()
+  for(var i = 0; i < rs.length; i++) {
+    rs[i].resize = true
+  }
 }) as EventListener)
 
-window.addEventListener('sx-player-add-region-stop', ((e: CustomEventInit<RegionNameUpdate>) => {
+window.addEventListener('sx-controls-editing-stop', ((e: CustomEventInit<RegionNameUpdate>) => {
+  var rs = regions.getRegions()
+  for(var i = 0; i < rs.length; i++) {
+    rs[i].resize = false
+  }
+
   if(disableDragSelection) {
     disableDragSelection()
     disableDragSelection = undefined
   }
 
-  updating = false
+
+  ws.setOptions({autoScroll: true})
+
   scrollPosition = undefined
+  editing = false
 }) as EventListener)
 
 function updateLockedState(region : Region | undefined, song: Song | undefined) {
@@ -394,8 +458,6 @@ function updateLockedState(region : Region | undefined, song: Song | undefined) 
 }
 
 regions.on('region-created', (region) => {
-  console.log('created')
-  
   let songs = Alpine.store('songs') as Songs
   let song = songs.create(region.start, region.end);
   if(!song) {
@@ -408,34 +470,24 @@ regions.on('region-created', (region) => {
   updateLockedState(region, song)
 
   ws.setTime(region.start);
-
-  let player = Alpine.store('player') as Player
-  player.stopAdding()
 })
 
 function findRegion(regionId: string) : Region | undefined {
   return regions.getRegions().find((r, _) => r.id == regionId)
 }
 
-var scrollPosition: number | undefined = undefined
 regions.on('region-update', (region) => {
-  if(!updating) {
-    updating = true
-    scrollPosition = ws.getScroll()
-    console.log('scrollPosition: ' + scrollPosition)
-  }
-
   let songs = Alpine.store('songs') as Songs
   let song = songs.find(region.id);
-  
+
   if(!song) {
     return
   }
-  
+
   song.update(region.start, region.end)
   region.setOptions({ start: song.startTime, end: song.endTime })
   updateLockedState(region, song)
-  
+
   if(song.prevNeighbour) {
     var prevRegion = findRegion(song.prevNeighbour.song.id)
     prevRegion?.setOptions({ start: song.prevNeighbour.song.startTime, end: song.prevNeighbour.song.endTime })
@@ -449,10 +501,10 @@ regions.on('region-update', (region) => {
   }
 })
 
-regions.on('region-updated', (region) => {  
+regions.on('region-updated', (region) => {
   let songs = Alpine.store('songs') as Songs
   let song = songs.find(region.id);
-  
+
   if(!song) {
     return
   }
@@ -469,19 +521,14 @@ regions.on('region-updated', (region) => {
     var nextRegion = findRegion(song.nextNeighbour.song.id)
     updateLockedState(nextRegion, song.nextNeighbour?.song)
   }
-
-  updating = false
-  scrollPosition = undefined
 })
 
 regions.on('region-in', (region) => {
-  console.log('in: ' + region.id)
   let songs = Alpine.store('songs') as Songs
   songs.in(region.id)
 })
 
 regions.on('region-out', (region) => {
-  console.log('out: ' + region.id)
   let songs = Alpine.store('songs') as Songs
   songs.out(region.id)
 })

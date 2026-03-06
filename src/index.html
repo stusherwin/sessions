@@ -15,35 +15,45 @@
     <div id="waveform" class="my-4"></div>
 
     <div x-data>
-      <button @click="$store.player.skipToStart()">
+      <button @click="$store.controls.skipToStart()">
         <svg class="bi" width="16" height="16" fill="currentColor">
           <use href="#skip-start-fill" />
         </svg>
       </button>
-      <button @click="$store.player.playPause()">
+      <button @click="$store.controls.skipBackward()">
         <svg class="bi" width="16" height="16" fill="currentColor">
-          <use x-show="!$store.player.playing" href="#play-fill" />
-          <use x-show="$store.player.playing" href="#pause-fill" />
+          <use href="#skip-backward-fill" />
         </svg>
       </button>
-      <button @click="$store.player.skipToEnd()">
+      <button @click="$store.controls.playPause()">
+        <svg class="bi" width="16" height="16" fill="currentColor">
+          <use x-show="!$store.controls.playing" href="#play-fill" />
+          <use x-show="$store.controls.playing" href="#pause-fill" />
+        </svg>
+      </button>
+      <button @click="$store.controls.skipForward()">
+        <svg class="bi" width="16" height="16" fill="currentColor">
+          <use href="#skip-forward-fill" />
+        </svg>
+      </button>
+      <button @click="$store.controls.skipToEnd()">
         <svg class="bi" width="16" height="16" fill="currentColor">
           <use href="#skip-end-fill" />
         </svg>
       </button>
-      <button @click="$store.player.zoomIn()">
+      <button @click="$store.controls.zoomIn()">
         <svg class="bi" width="16" height="16" fill="currentColor">
           <use href="#zoom-in" />
         </svg>
       </button>
-      <button @click="$store.player.zoomOut()">
+      <button @click="$store.controls.zoomOut()">
         <svg class="bi" width="16" height="16" fill="currentColor">
           <use href="#zoom-out" />
         </svg>
       </button>
-      <button @click="$store.player.toggleAddRegion()" :class="$store.player.adding ? 'inverted' : ''">
+      <button @click="$store.controls.toggleEditing()" :class="$store.controls.editing ? 'inverted' : ''">
         <svg class="bi" width="16" height="16" fill="currentColor">
-          <use href="#plus" />
+          <use href="#pencil-fill" />
         </svg>
       </button>
     </div>
