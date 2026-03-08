@@ -63,15 +63,6 @@ class Controls {
       dispatchEvent(new CustomEvent('sx-controls-editing-stop', { detail: this }))
     }
   }
-
-  // startAdding() {
-  //   this.adding = true
-  //   dispatchEvent(new CustomEvent('sx-controls-add-region-start', { detail: this }))
-  // }
-  // stopAdding() {
-  //   this.adding = false
-  //   dispatchEvent(new CustomEvent('sx-controls-add-region-stop', { detail: this }))
-  // }
 }
 
 var delta = 2;
@@ -283,8 +274,9 @@ const regions = RegionsPlugin.create()
 
 const ws = WaveSurfer.create({
   container: '#waveform',
-  waveColor: '#4F4A85',
-  progressColor: '#383351',
+  waveColor: 'black',
+  progressColor: 'black',
+  cursorColor: 'red',
   url: '/session1.mp3',
   plugins: [regions],
 })
@@ -358,7 +350,7 @@ ws.once('decode', () => {
     let songs = Alpine.store('songs') as Songs
     let song = songs.findPrevious(ws.getCurrentTime());
     if(song) {
-      ws.setTime(song.startTime);
+      ws.setTime(song.startTime + 0.00000001);
     }
   })
 
@@ -366,7 +358,7 @@ ws.once('decode', () => {
     let songs = Alpine.store('songs') as Songs
     let song = songs.findNext(ws.getCurrentTime());
     if(song) {
-      ws.setTime(song.startTime);
+      ws.setTime(song.startTime + 0.00000001);
     }
   })
 })
@@ -401,16 +393,34 @@ window.addEventListener('sx-controls-editing-start', ((e: CustomEventInit<Region
   editing = true
   scrollPosition = ws.getScroll()
 
-  ws.setOptions({autoScroll: false})
+  document.getElementById('waveform')?.classList.add('inverted')
+  ws.setOptions({
+    autoScroll: false,
+    waveColor: 'white',
+    progressColor: 'white',
+    cursorColor: 'red'
+  })
+
+  var parent = ws.getWrapper().parentElement
+  if(parent) {
+    parent.style.overflowX = 'hidden'
+  }
 
   disableDragSelection = regions.enableDragSelection({
-    color: 'rgba(206.6, 226, 254.6, 0.5)',
+    // color: 'rgba(206.6, 226, 254.6, 0.5)',
     drag: false
   })
 
   var rs = regions.getRegions()
   for(var i = 0; i < rs.length; i++) {
     rs[i].resize = true
+    var el = rs[i].element
+    if(el) {
+      el.part.add('sx-editable')
+      for(var j = 0; j < el.children.length; j++) {
+        el.children[j].part.add('sx-editable')
+      }
+    }
   }
 }) as EventListener)
 
@@ -418,6 +428,13 @@ window.addEventListener('sx-controls-editing-stop', ((e: CustomEventInit<RegionN
   var rs = regions.getRegions()
   for(var i = 0; i < rs.length; i++) {
     rs[i].resize = false
+    var el = rs[i].element
+    if(el) {
+      el.part.remove('sx-editable')
+      for(var j = 0; j < el.children.length; j++) {
+        el.children[j].part.remove('sx-editable')
+      }
+    }
   }
 
   if(disableDragSelection) {
@@ -425,8 +442,18 @@ window.addEventListener('sx-controls-editing-stop', ((e: CustomEventInit<RegionN
     disableDragSelection = undefined
   }
 
+  document.getElementById('waveform')?.classList.remove('inverted')
+  ws.setOptions({
+    autoScroll: true,
+    waveColor: 'black',
+    progressColor: 'black',
+    cursorColor: 'red'
+  })
+  var parent = ws.getWrapper().parentElement
+  if(parent) {
+    parent.style.overflowX = 'auto'
+  }
 
-  ws.setOptions({autoScroll: true})
 
   scrollPosition = undefined
   editing = false
@@ -435,6 +462,21 @@ window.addEventListener('sx-controls-editing-stop', ((e: CustomEventInit<RegionN
 function updateLockedState(region : Region | undefined, song: Song | undefined) {
   if(!song || !region) {
     return
+  }
+
+  var el = region.element
+  if(el) {
+    el.part.add('sx-song')
+    el.part.add('sx-editable')
+    for(var j = 0; j < el.children.length; j++) {
+      el.children[j].part.add('sx-editable')
+    }
+    if(song.current) {
+      el.part.add('sx-current')
+    } else {
+      el.part.remove('sx-current')
+    }
+
   }
 
   function lock(region: Region | undefined, side: string) {
@@ -457,6 +499,16 @@ function updateLockedState(region : Region | undefined, song: Song | undefined) 
   }
 }
 
+regions.on('region-initialized', region => {
+  var el = region.element
+  if(el) {
+    el.part.add('sx-editable')
+    for(var j = 0; j < el.children.length; j++) {
+      el.children[j].part.add('sx-editable')
+    }
+  }
+});
+
 regions.on('region-created', (region) => {
   let songs = Alpine.store('songs') as Songs
   let song = songs.create(region.start, region.end);
@@ -466,7 +518,15 @@ regions.on('region-created', (region) => {
   }
 
   region.setOptions({ id : song.id, content: song.name, start: song.startTime, end: song.endTime })
-  region.element?.part.add('sx-song')
+  var el = region.element
+  if(el) {
+    el.part.add('sx-song')
+    el.part.add('sx-editable')
+    for(var j = 0; j < el.children.length; j++) {
+      el.children[j].part.add('sx-editable')
+    }
+  }
+
   updateLockedState(region, song)
 
   ws.setTime(region.start);
@@ -486,6 +546,7 @@ regions.on('region-update', (region) => {
 
   song.update(region.start, region.end)
   region.setOptions({ start: song.startTime, end: song.endTime })
+
   updateLockedState(region, song)
 
   if(song.prevNeighbour) {
@@ -526,11 +587,29 @@ regions.on('region-updated', (region) => {
 regions.on('region-in', (region) => {
   let songs = Alpine.store('songs') as Songs
   songs.in(region.id)
+  for(var i = 0; i < songs.all.length; i++) {
+    var song = songs.all[i]
+    var r = findRegion(song.id)
+    if(song.current) {
+      r?.element?.part.add('sx-current')
+    } else {
+      r?.element?.part.remove('sx-current')
+    }
+  }
 })
 
 regions.on('region-out', (region) => {
   let songs = Alpine.store('songs') as Songs
   songs.out(region.id)
+  for(var i = 0; i < songs.all.length; i++) {
+    var song = songs.all[i]
+    var r = findRegion(song.id)
+    if(song.current) {
+      r?.element?.part.add('sx-current')
+    } else {
+      r?.element?.part.remove('sx-current')
+    }
+  }
 })
 
 interface RegionNameUpdate {
