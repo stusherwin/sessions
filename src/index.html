@@ -15,7 +15,7 @@
     <div x-data>
       <template x-for="(session, index) in $store.sessions.all">
         <div>
-          <div :id="'waveform' + index" class="my-4"></div>
+          <div :data-session-id="session.id" class="waveform my-4"></div>
           <div>
             <button @click="session.skipToStart()">
               <svg class="bi" width="16" height="16" fill="currentColor">
@@ -61,7 +61,7 @@
           </div>
 
           <template x-for="song in session.songs">
-            <div x-data x-init="$watch('song.name', name => $dispatch('sx-song-name-updated', {id: song.id, name: name}))">
+            <div x-data x-init="$watch('song.name', name => session.updateSongName(song.id, name))">
               <div x-show="song.current">
                 <div x-text="song.id"></div>
                 <input type="text" x-model="song.name" />

@@ -3,11 +3,6 @@ import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Session, Song } from './session'
 
-interface RegionNameUpdate {
-  id: string,
-  name: string
-}
-
 class Waveform {
   filename: string
   containerSelector: string
@@ -20,18 +15,18 @@ class Waveform {
   editing = false
   scrollPosition: number | undefined = undefined
 
-  constructor(filename: string, containerSelector: string, session: Session) {
-    this.filename = filename
-    this.containerSelector = containerSelector
+  constructor(session: Session) {
+    this.filename = session.filename
+    this.containerSelector = '.waveform[data-session-id="' + session.id + '"]'
     this.session = session
 
     this.regions = RegionsPlugin.create()
     this.ws = WaveSurfer.create({
-      container: containerSelector,
+      container: this.containerSelector,
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red',
-      url: '/' + filename,
+      url: '/' + this.filename,
       plugins: [this.regions],
     })
 
@@ -46,6 +41,7 @@ class Waveform {
       this.session.on('skip-forward', () => this.skipForward())
       this.session.on('editing-start', () => this.startEditing())
       this.session.on('editing-stop', () => this.stopEditing())
+      this.session.on('song-name-updated', (id, name) => this.songNameUpdated(id, name))
       this.ws.on('scroll', () => this.scroll())
       this.ws.on('play', () => this.play())
       this.ws.on('pause', () => this.pause())
@@ -56,9 +52,6 @@ class Waveform {
       this.regions.on('region-updated', r => this.regionUpdated(r))
       this.regions.on('region-in', r => this.regionIn(r))
       this.regions.on('region-out', r => this.regionOut(r))
-      window.addEventListener('sx-song-name-updated', ((e: CustomEventInit<RegionNameUpdate>) => {
-        this.songNameUpdated(e.detail?.id, e.detail?.name)
-      }) as EventListener)
    })
   }
 
@@ -376,7 +369,7 @@ class Waveform {
     }
   }
 
-  songNameUpdated(id: string | undefined, name: string | undefined) {
+  songNameUpdated(id: string, name: string) {
     var r = this.regions.getRegions().find((r, _) => r.id == id)
     if(r) {
       r.setContent(name || '')

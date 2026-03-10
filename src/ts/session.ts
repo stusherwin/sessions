@@ -11,15 +11,24 @@ export type SessionEvents = {
   'zoom-out': []
   'editing-start': []
   'editing-stop': []
+  'song-name-updated': [string, string]
 }
 
 var delta = 5;
 
 export class Session extends EventEmitter<SessionEvents> {
+  id: string
+  filename: string
   songs: Song[] = []
   nextSongId: number = 1
   playing: boolean = false
   editing: boolean = false
+
+  constructor(id: string, filename: string) {
+    super()
+    this.id = id
+    this.filename = filename
+  }
 
   create(startTime: number, endTime: number) {
     var newSong = new Song('song-' + this.nextSongId, 'Song ' + this.nextSongId, startTime, endTime)
@@ -178,6 +187,10 @@ export class Session extends EventEmitter<SessionEvents> {
     } else {
         this.emit('editing-stop')
     }
+  }
+
+  updateSongName(id: string, name: string) {
+    this.emit('song-name-updated', id, name)
   }
 }
 

@@ -13,14 +13,6 @@ if(allSvg) {
 window.Alpine = Alpine
 Alpine.plugin(persist)
 
-// export default Song
-// declare global {
-//     // Note the capital "W"
-//     interface Window { Song: any; }
-// }
-
-// window.Song = Song
-
 class Sessions {
   all: Session[]
   init() {
@@ -31,10 +23,13 @@ class Sessions {
   }
 
 }
-Alpine.store('sessions', new Sessions([new Session(), new Session()]))
+Alpine.store('sessions', new Sessions([
+  new Session('session-1', 'session1.mp3'), 
+  new Session('session-2', 'example.mp3')
+]))
 Alpine.start()
 
 let sessions = Alpine.store('sessions') as Sessions
-
-new Waveform('session1.mp3', '#waveform0', sessions.all[0])
-new Waveform('example.mp3', '#waveform1', sessions.all[1])
+for(var i = 0; i < sessions.all.length; i++) {
+  new Waveform(sessions.all[i])
+}
