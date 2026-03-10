@@ -1,7 +1,7 @@
 import WaveSurfer from 'wavesurfer.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
-import { Session, Song } from './session'
+import { Session, Tune } from './session'
 
 class Waveform {
   filename: string
@@ -41,7 +41,7 @@ class Waveform {
       this.session.on('skip-forward', () => this.skipForward())
       this.session.on('editing-start', () => this.startEditing())
       this.session.on('editing-stop', () => this.stopEditing())
-      this.session.on('song-name-updated', (id, name) => this.songNameUpdated(id, name))
+      this.session.on('tune-name-updated', (id, name) => this.songNameUpdated(id, name))
       this.ws.on('scroll', () => this.scroll())
       this.ws.on('play', () => this.play())
       this.ws.on('pause', () => this.pause())
@@ -119,16 +119,16 @@ class Waveform {
   }
 
   skipBackward() {
-    let song = this.session.findPrevious(this.ws.getCurrentTime());
-    if(song) {
-      this.ws.setTime(song.startTime + 0.00000001);
+    let tune = this.session.findPrevious(this.ws.getCurrentTime());
+    if(tune) {
+      this.ws.setTime(tune.startTime + 0.00000001);
     }
   }
 
   skipForward() {
-    let song = this.session.findNext(this.ws.getCurrentTime());
-    if(song) {
-      this.ws.setTime(song.startTime + 0.00000001);
+    let tune = this.session.findNext(this.ws.getCurrentTime());
+    if(tune) {
+      this.ws.setTime(tune.startTime + 0.00000001);
     }
   }
 
@@ -202,19 +202,19 @@ class Waveform {
     this.editing = false
   }
 
-  updateLockedState(region : Region | undefined, song: Song | undefined) {
-    if(!song || !region) {
+  updateLockedState(region : Region | undefined, tune: Tune | undefined) {
+    if(!tune || !region) {
       return
     }
 
     var el = region.element
     if(el) {
-      el.part.add('sx-song')
+      el.part.add('sx-tune')
       el.part.add('sx-editable')
       for(var j = 0; j < el.children.length; j++) {
         el.children[j].part.add('sx-editable')
       }
-      if(song.current) {
+      if(tune.current) {
         el.part.add('sx-current')
       } else {
         el.part.remove('sx-current')
@@ -228,15 +228,15 @@ class Waveform {
       handle?.part.add('sx-locked')
     }
 
-    if(song.prevNeighbour && song.prevNeighbour.locked) {
+    if(tune.prevNeighbour && tune.prevNeighbour.locked) {
       lock(region, 'left')
-      var prevNeighbourId = song.prevNeighbour.song.id
+      var prevNeighbourId = tune.prevNeighbour.tune.id
       var prev = this.regions.getRegions().find((r, _) => r.id == prevNeighbourId)
       lock(prev, 'right')
     }
-    if(song.nextNeighbour && song.nextNeighbour.locked) {
+    if(tune.nextNeighbour && tune.nextNeighbour.locked) {
       lock(region, 'right')
-      var nextNeighbourId = song.nextNeighbour.song.id
+      var nextNeighbourId = tune.nextNeighbour.tune.id
       var next = this.regions.getRegions().find((r, _) => r.id == nextNeighbourId)
       lock(next, 'left')
     }
@@ -272,23 +272,23 @@ class Waveform {
   }
 
   regionCreated(region: Region) {
-    let song = this.session.create(region.start, region.end);
-    if(!song) {
+    let tune = this.session.create(region.start, region.end);
+    if(!tune) {
       region.remove()
       return
     }
 
-    region.setOptions({ id : song.id, content: song.name, start: song.startTime, end: song.endTime })
+    region.setOptions({ id : tune.id, content: tune.name, start: tune.startTime, end: tune.endTime })
     var el = region.element
     if(el) {
-      el.part.add('sx-song')
+      el.part.add('sx-tune')
       el.part.add('sx-editable')
       for(var j = 0; j < el.children.length; j++) {
         el.children[j].part.add('sx-editable')
       }
     }
 
-    this.updateLockedState(region, song)
+    this.updateLockedState(region, tune)
 
     this.ws.setTime(region.start);
   }
@@ -298,57 +298,57 @@ class Waveform {
   }
 
   regionUpdate(region: Region) {
-    let song = this.session.find(region.id);
+    let tune = this.session.find(region.id);
 
-    if(!song) {
+    if(!tune) {
       return
     }
 
-    song.update(region.start, region.end)
-    region.setOptions({ start: song.startTime, end: song.endTime })
+    tune.update(region.start, region.end)
+    region.setOptions({ start: tune.startTime, end: tune.endTime })
 
-    this.updateLockedState(region, song)
+    this.updateLockedState(region, tune)
 
-    if(song.prevNeighbour) {
-      var prevRegion = this.findRegion(song.prevNeighbour.song.id)
-      prevRegion?.setOptions({ start: song.prevNeighbour.song.startTime, end: song.prevNeighbour.song.endTime })
-      this.updateLockedState(prevRegion, song.prevNeighbour?.song)
+    if(tune.prevNeighbour) {
+      var prevRegion = this.findRegion(tune.prevNeighbour.tune.id)
+      prevRegion?.setOptions({ start: tune.prevNeighbour.tune.startTime, end: tune.prevNeighbour.tune.endTime })
+      this.updateLockedState(prevRegion, tune.prevNeighbour?.tune)
     }
 
-    if(song.nextNeighbour) {
-      var nextRegion = this.findRegion(song.nextNeighbour.song.id)
-      nextRegion?.setOptions({ start: song.nextNeighbour.song.startTime, end: song.nextNeighbour.song.endTime })
-      this.updateLockedState(nextRegion, song.nextNeighbour?.song)
+    if(tune.nextNeighbour) {
+      var nextRegion = this.findRegion(tune.nextNeighbour.tune.id)
+      nextRegion?.setOptions({ start: tune.nextNeighbour.tune.startTime, end: tune.nextNeighbour.tune.endTime })
+      this.updateLockedState(nextRegion, tune.nextNeighbour?.tune)
     }
   }
 
   regionUpdated(region: Region) {
-    let song = this.session.find(region.id);
+    let tune = this.session.find(region.id);
 
-    if(!song) {
+    if(!tune) {
       return
     }
 
-    song.lockNeighbours()
-    this.updateLockedState(region, song)
+    tune.lockNeighbours()
+    this.updateLockedState(region, tune)
 
-    if(song.prevNeighbour) {
-      var prevRegion = this.findRegion(song.prevNeighbour.song.id)
-      this.updateLockedState(prevRegion, song.prevNeighbour?.song)
+    if(tune.prevNeighbour) {
+      var prevRegion = this.findRegion(tune.prevNeighbour.tune.id)
+      this.updateLockedState(prevRegion, tune.prevNeighbour?.tune)
     }
 
-    if(song.nextNeighbour) {
-      var nextRegion = this.findRegion(song.nextNeighbour.song.id)
-      this.updateLockedState(nextRegion, song.nextNeighbour?.song)
+    if(tune.nextNeighbour) {
+      var nextRegion = this.findRegion(tune.nextNeighbour.tune.id)
+      this.updateLockedState(nextRegion, tune.nextNeighbour?.tune)
     }
   }
 
   regionIn(region: Region) {
     this.session.in(region.id)
-    for(var i = 0; i < this.session.songs.length; i++) {
-      var song = this.session.songs[i]
-      var r = this.findRegion(song.id)
-      if(song.current) {
+    for(var i = 0; i < this.session.tunes.length; i++) {
+      var tune = this.session.tunes[i]
+      var r = this.findRegion(tune.id)
+      if(tune.current) {
         r?.element?.part.add('sx-current')
       } else {
         r?.element?.part.remove('sx-current')
@@ -358,10 +358,10 @@ class Waveform {
 
   regionOut(region: Region) {
     this.session.out(region.id)
-    for(var i = 0; i < this.session.songs.length; i++) {
-      var song = this.session.songs[i]
-      var r = this.findRegion(song.id)
-      if(song.current) {
+    for(var i = 0; i < this.session.tunes.length; i++) {
+      var tune = this.session.tunes[i]
+      var r = this.findRegion(tune.id)
+      if(tune.current) {
         r?.element?.part.add('sx-current')
       } else {
         r?.element?.part.remove('sx-current')

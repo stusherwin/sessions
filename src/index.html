@@ -60,12 +60,12 @@
             </button>
           </div>
 
-          <template x-for="song in session.songs">
-            <div x-data x-init="$watch('song.name', name => session.updateSongName(song.id, name))">
-              <div x-show="song.current">
-                <div x-text="song.id"></div>
-                <input type="text" x-model="song.name" />
-                <div x-text="song.name"></div>
+          <template x-for="tune in session.tunes">
+            <div x-data x-init="$watch('tune.name', name => session.updateTuneName(tune.id, name))">
+              <div x-show="tune.current">
+                <div x-text="tune.id"></div>
+                <input type="text" x-model="tune.name" />
+                <div x-text="tune.name"></div>
               </div>
             </div>
           </template>

@@ -11,7 +11,7 @@ export type SessionEvents = {
   'zoom-out': []
   'editing-start': []
   'editing-stop': []
-  'song-name-updated': [string, string]
+  'tune-name-updated': [string, string]
 }
 
 var delta = 5;
@@ -19,8 +19,8 @@ var delta = 5;
 export class Session extends EventEmitter<SessionEvents> {
   id: string
   filename: string
-  songs: Song[] = []
-  nextSongId: number = 1
+  tunes: Tune[] = []
+  nextTuneId: number = 1
   playing: boolean = false
   editing: boolean = false
 
@@ -31,119 +31,119 @@ export class Session extends EventEmitter<SessionEvents> {
   }
 
   create(startTime: number, endTime: number) {
-    var newSong = new Song('song-' + this.nextSongId, 'Song ' + this.nextSongId, startTime, endTime)
+    var newTune = new Tune('tune-' + this.nextTuneId, 'Tune ' + this.nextTuneId, startTime, endTime)
 
-    if(!this.songs.length) {
-      this.songs = [newSong]
-      this.nextSongId++
-      return newSong;
+    if(!this.tunes.length) {
+      this.tunes = [newTune]
+      this.nextTuneId++
+      return newTune;
     }
 
-    for(var i = 0; i < this.songs.length; i++) {
-      let song = this.songs[i]
-      if(newSong.startTime < song.startTime && song.endTime < newSong.endTime) {
+    for(var i = 0; i < this.tunes.length; i++) {
+      let tune = this.tunes[i]
+      if(newTune.startTime < tune.startTime && tune.endTime < newTune.endTime) {
         return null;
       }
     }
 
     var newAll = []
     var pushed = false
-    for(var i = 0; i < this.songs.length; i++) {
-      let song = this.songs[i]
+    for(var i = 0; i < this.tunes.length; i++) {
+      let tune = this.tunes[i]
 
       //       [ A ]       [ B ]
       // <-1->
-      if(!pushed && newSong.startTime < song.startTime && newSong.endTime < song.startTime) {
-        var prevNeighbour = song.prevNeighbour
+      if(!pushed && newTune.startTime < tune.startTime && newTune.endTime < tune.startTime) {
+        var prevNeighbour = tune.prevNeighbour
         if(prevNeighbour) {
-          prevNeighbour.song.nextNeighbour = new SongNeighbour(newSong, prevNeighbour.locked)
+          prevNeighbour.tune.nextNeighbour = new TuneNeighbour(newTune, prevNeighbour.locked)
         }
-        newSong.prevNeighbour = prevNeighbour
-        newSong.nextNeighbour = new SongNeighbour(song, false)
-        newAll.push(newSong)
+        newTune.prevNeighbour = prevNeighbour
+        newTune.nextNeighbour = new TuneNeighbour(tune, false)
+        newAll.push(newTune)
         pushed = true
-        song.prevNeighbour = new SongNeighbour(newSong, false)
+        tune.prevNeighbour = new TuneNeighbour(newTune, false)
       //       [ A ]       [ B ]
       //     <-2->
-      } else if(!pushed && newSong.startTime < song.startTime && song.startTime < newSong.endTime && newSong.endTime < song.endTime) {
-        var prevNeighbour = song.prevNeighbour
+      } else if(!pushed && newTune.startTime < tune.startTime && tune.startTime < newTune.endTime && newTune.endTime < tune.endTime) {
+        var prevNeighbour = tune.prevNeighbour
         if(prevNeighbour) {
-          prevNeighbour.song.nextNeighbour = new SongNeighbour(newSong, prevNeighbour.locked)
+          prevNeighbour.tune.nextNeighbour = new TuneNeighbour(newTune, prevNeighbour.locked)
         }
-        newSong.endTime = song.startTime
-        newSong.prevNeighbour = prevNeighbour
-        newSong.nextNeighbour = new SongNeighbour(song, true)
-        newAll.push(newSong)
+        newTune.endTime = tune.startTime
+        newTune.prevNeighbour = prevNeighbour
+        newTune.nextNeighbour = new TuneNeighbour(tune, true)
+        newAll.push(newTune)
         pushed = true
-        song.prevNeighbour = new SongNeighbour(newSong, true)
+        tune.prevNeighbour = new TuneNeighbour(newTune, true)
       }
 
-      newAll.push(song)
+      newAll.push(tune)
 
       //       [ A ]       [ B ]
       //         <-3->
-      if(!pushed && song.startTime < newSong.startTime && newSong.startTime < song.endTime && song.endTime < newSong.endTime) {
-        var nextNeighbour = song.nextNeighbour
+      if(!pushed && tune.startTime < newTune.startTime && newTune.startTime < tune.endTime && tune.endTime < newTune.endTime) {
+        var nextNeighbour = tune.nextNeighbour
         if(nextNeighbour) {
-          nextNeighbour.song.prevNeighbour = new SongNeighbour(newSong, nextNeighbour.locked)
+          nextNeighbour.tune.prevNeighbour = new TuneNeighbour(newTune, nextNeighbour.locked)
         }
-        newSong.startTime = song.endTime
-        newSong.prevNeighbour = new SongNeighbour(song, true)
-        newSong.nextNeighbour = nextNeighbour
-        song.nextNeighbour = new SongNeighbour(newSong, true)
-        newAll.push(newSong)
+        newTune.startTime = tune.endTime
+        newTune.prevNeighbour = new TuneNeighbour(tune, true)
+        newTune.nextNeighbour = nextNeighbour
+        tune.nextNeighbour = new TuneNeighbour(newTune, true)
+        newAll.push(newTune)
         pushed = true
       //       [ A ]       [ B ]
       //             <-4->
-      } else if(!pushed && song.endTime < newSong.startTime && i == this.songs.length - 1) {
-        newSong.prevNeighbour = new SongNeighbour(song, false)
-        newSong.nextNeighbour = song.nextNeighbour
-        song.nextNeighbour = new SongNeighbour(newSong, false)
-        newAll.push(newSong)
+      } else if(!pushed && tune.endTime < newTune.startTime && i == this.tunes.length - 1) {
+        newTune.prevNeighbour = new TuneNeighbour(tune, false)
+        newTune.nextNeighbour = tune.nextNeighbour
+        tune.nextNeighbour = new TuneNeighbour(newTune, false)
+        newAll.push(newTune)
         pushed = true
       }
     }
 
-    this.songs = newAll
-    this.nextSongId++
+    this.tunes = newAll
+    this.nextTuneId++
 
-    return newSong
+    return newTune
   }
 
-  find(id: string) : Song | undefined {
-    return this.songs.find(s => s.id == id)
+  find(id: string) : Tune | undefined {
+    return this.tunes.find(s => s.id == id)
   }
 
-  findNext(time: number) : Song | undefined {
-    for(var i = 0; i < this.songs.length; i++) {
-      var song = this.songs[i]
-      if(song.startTime > time) {
-        return song
+  findNext(time: number) : Tune | undefined {
+    for(var i = 0; i < this.tunes.length; i++) {
+      var tune = this.tunes[i]
+      if(tune.startTime > time) {
+        return tune
       }
     }
   }
 
-  findPrevious(time: number) : Song | undefined {
-    for(var i = this.songs.length - 1; i >= 0; i--) {
-      var song = this.songs[i]
-      if(song.startTime < time - delta) {
-        return song
+  findPrevious(time: number) : Tune | undefined {
+    for(var i = this.tunes.length - 1; i >= 0; i--) {
+      var tune = this.tunes[i]
+      if(tune.startTime < time - delta) {
+        return tune
       }
     }
   }
 
   in(id: string) {
-    for(var i = 0; i < this.songs.length; i++) {
-      let song = this.songs[i]
-      song.current = song.id === id
+    for(var i = 0; i < this.tunes.length; i++) {
+      let tune = this.tunes[i]
+      tune.current = tune.id === id
     }
   }
 
   out(id: string) {
-    for(var i = 0; i < this.songs.length; i++) {
-      let song = this.songs[i]
-      if(song.id === id) {
-        song.current = false
+    for(var i = 0; i < this.tunes.length; i++) {
+      let tune = this.tunes[i]
+      if(tune.id === id) {
+        tune.current = false
       }
     }
   }
@@ -189,29 +189,29 @@ export class Session extends EventEmitter<SessionEvents> {
     }
   }
 
-  updateSongName(id: string, name: string) {
-    this.emit('song-name-updated', id, name)
+  updateTuneName(id: string, name: string) {
+    this.emit('tune-name-updated', id, name)
   }
 }
 
-class SongNeighbour {
-  song: Song
+class TuneNeighbour {
+  tune: Tune
   locked: boolean
 
-  constructor(song: Song, locked: boolean) {
-    this.song = song
+  constructor(tune: Tune, locked: boolean) {
+    this.tune = tune
     this.locked = locked
   }
 }
 
-export class Song {
+export class Tune {
   id: string
   name: string
   startTime: number
   endTime: number
   current: boolean = false
-  prevNeighbour: SongNeighbour | undefined = undefined
-  nextNeighbour: SongNeighbour | undefined = undefined
+  prevNeighbour: TuneNeighbour | undefined = undefined
+  nextNeighbour: TuneNeighbour | undefined = undefined
 
   constructor(id: string, name: string, startTime: number, endTime: number) {
     this.id = id
@@ -223,20 +223,20 @@ export class Song {
   update(startTime: number, endTime: number) {
     if(this.prevNeighbour) {
       if(this.prevNeighbour.locked) {
-        this.prevNeighbour.song.endTime = startTime
+        this.prevNeighbour.tune.endTime = startTime
       } else {
-        if(startTime < this.prevNeighbour.song.endTime) {
-          startTime = this.prevNeighbour.song.endTime
+        if(startTime < this.prevNeighbour.tune.endTime) {
+          startTime = this.prevNeighbour.tune.endTime
         }
       }
     }
 
     if(this.nextNeighbour) {
       if(this.nextNeighbour.locked) {
-        this.nextNeighbour.song.startTime = endTime
+        this.nextNeighbour.tune.startTime = endTime
       } else {
-        if(this.nextNeighbour.song.startTime < endTime) {
-          endTime = this.nextNeighbour.song.startTime
+        if(this.nextNeighbour.tune.startTime < endTime) {
+          endTime = this.nextNeighbour.tune.startTime
         }
       }
     }
@@ -246,14 +246,14 @@ export class Song {
   }
 
   lockNeighbours() {
-    if(this.prevNeighbour && this.startTime == this.prevNeighbour.song.endTime) {
+    if(this.prevNeighbour && this.startTime == this.prevNeighbour.tune.endTime) {
       this.prevNeighbour.locked = true;
-      this.prevNeighbour.song.nextNeighbour = new SongNeighbour(this, true);
+      this.prevNeighbour.tune.nextNeighbour = new TuneNeighbour(this, true);
     }
 
-    if(this.nextNeighbour && this.endTime == this.nextNeighbour.song.startTime) {
+    if(this.nextNeighbour && this.endTime == this.nextNeighbour.tune.startTime) {
       this.nextNeighbour.locked = true;
-      this.nextNeighbour.song.prevNeighbour = new SongNeighbour(this, true);
+      this.nextNeighbour.tune.prevNeighbour = new TuneNeighbour(this, true);
     }
   }
 }
