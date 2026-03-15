@@ -1,6 +1,8 @@
 import EventEmitter from './event-emitter'
 
 export type SessionEvents = {
+  'load': []
+  'unload': []
   'play-from-start': []
   'skip-to-start': []
   'skip-to-end': []
@@ -16,19 +18,71 @@ export type SessionEvents = {
 
 var delta = 5;
 
+export interface SessionData {
+  id: string,
+  name: string,
+  filename: string,
+  peaks: number[][] | undefined,
+  duration: number | undefined,
+  tunes: TuneData[]
+}
+
+export interface TuneData {
+  id: string
+  name: string
+  startTime: number
+  endTime: number,
+  prevNeighbourLocked: boolean
+  nextNeighbourLocked: boolean
+}
+
 export class Session extends EventEmitter<SessionEvents> {
   id: string
+  name: string
   filename: string
   tunes: Tune[] = []
+  peaks: number[][] | undefined
+  duration: number | undefined
   nextTuneId: number = 1
+  loading: number = 0
+  ready: boolean = false
   playing: boolean = false
   editing: boolean = false
 
-  constructor(id: string, filename: string) {
+  constructor(data: SessionData) {
     super()
-    this.id = id
-    this.filename = filename
+    this.id = data.id
+    this.name = data.name
+    this.filename = data.filename
+    this.peaks = data.peaks
+    this.duration = data.duration
+    this.tunes = data.tunes.map(t => new Tune(t.id, t.name, t.startTime, t.endTime))
+    console.log(data.tunes)
+    console.log(this.tunes)
+
+    for(var i = 1; i < this.tunes.length; i++) {
+      let prevTune = this.tunes[i - 1]
+      let tune = this.tunes[i]
+      let tuneData = data.tunes[i]
+
+      prevTune.nextNeighbour = new TuneNeighbour(tune, tuneData && tuneData.prevNeighbourLocked)
+      tune.prevNeighbour = new TuneNeighbour(prevTune, tuneData && tuneData.prevNeighbourLocked)
+    }
+
+    this.nextTuneId = this.tunes.length + 1
   }
+
+  load() {
+    console.log('load: ' + this.id)
+    this.loading = 0
+    this.ready = false
+    this.emit('load')
+  }
+
+  unload() {
+    console.log('unload: ' + this.id)
+    this.emit('unload')
+  }  
 
   create(startTime: number, endTime: number) {
     var newTune = new Tune('tune-' + this.nextTuneId, 'Tune ' + this.nextTuneId, startTime, endTime)
@@ -191,6 +245,24 @@ export class Session extends EventEmitter<SessionEvents> {
 
   updateTuneName(id: string, name: string) {
     this.emit('tune-name-updated', id, name)
+  }
+
+  export() : SessionData {
+    return {
+      id: this.id,
+      name: this.name,
+      filename: this.filename,
+      peaks: this.peaks,
+      duration: this.duration,
+      tunes: this.tunes.map(t => ({
+        id: t.id,
+        name: t.name,
+        startTime: t.startTime,
+        endTime: t.endTime,
+        prevNeighbourLocked: t.prevNeighbour && t.prevNeighbour.locked || false,
+        nextNeighbourLocked: t.nextNeighbour && t.nextNeighbour.locked || false,
+      }))
+    }
   }
 }
 

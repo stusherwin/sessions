@@ -10,71 +10,87 @@
 
 <body>
   <div>
-    <h1>Session manager</h1>
+    <h1>Sessions</h1>
 
-    <div x-data>
-      <template x-for="(session, index) in $store.sessions.all">
-        <div>
-          <div :data-session-id="session.id" class="waveform my-4"></div>
-          <div>
-            <button @click="session.skipToStart()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-start-fill" />
-              </svg>
-            </button>
-            <button @click="session.skipBackward()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-backward-fill" />
-              </svg>
-            </button>
-            <button @click="session.playPause()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use x-show="!session.playing" href="#play-fill" />
-                <use x-show="session.playing" href="#pause-fill" />
-              </svg>
-            </button>
-            <button @click="session.skipForward()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-forward-fill" />
-              </svg>
-            </button>
-            <button @click="session.skipToEnd()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-end-fill" />
-              </svg>
-            </button>
-            <button @click="session.zoomIn()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#zoom-in" />
-              </svg>
-            </button>
-            <button @click="session.zoomOut()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#zoom-out" />
-              </svg>
-            </button>
-            <button @click="session.toggleEditing()" :class="session.editing ? 'inverted' : ''">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#pencil-fill" />
-              </svg>
-            </button>
+    <div x-data="{session: undefined}">
+      <ul>
+        <template x-for="s in $store.sessions.all">
+          <li>
+            <a href="#" x-text="s.name" @click="if(session) { session.unload(); } session = s; session.load()"></a>
+          </li>
+        </template>
+      </ul>
+      <template x-if="session">
+        <div class="session">
+          <h2 x-text="session.name"></h2>
+          <div x-show="!session.ready">
+            Loading: <span x-text="session.loading"></span>%
           </div>
-
-          <template x-for="tune in session.tunes">
-            <div x-data x-init="$watch('tune.name', name => session.updateTuneName(tune.id, name))">
-              <div x-show="tune.current">
-                <div x-text="tune.id"></div>
-                <input type="text" x-model="tune.name" />
-                <div x-text="tune.name"></div>
-              </div>
+          <div x-show="session.ready">
+            <div :data-session-id="session.id" class="waveform"></div>
+            <div>
+              <button @click="session.skipToStart()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#skip-start-fill" />
+                </svg>
+              </button>
+              <button @click="session.skipBackward()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#skip-backward-fill" />
+                </svg>
+              </button>
+              <button @click="session.playPause()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use x-show="!session.playing" href="#play-fill" />
+                  <use x-show="session.playing" href="#pause-fill" />
+                </svg>
+              </button>
+              <button @click="session.skipForward()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#skip-forward-fill" />
+                </svg>
+              </button>
+              <button @click="session.skipToEnd()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#skip-end-fill" />
+                </svg>
+              </button>
+              <button @click="session.zoomIn()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#zoom-in" />
+                </svg>
+              </button>
+              <button @click="session.zoomOut()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#zoom-out" />
+                </svg>
+              </button>
+              <button @click="session.toggleEditing()" :class="session.editing ? 'inverted' : ''">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#pencil-fill" />
+                </svg>
+              </button>
             </div>
-          </template>
+
+            <template x-for="tune in session.tunes">
+              <div x-data x-init="$watch('tune.name', name => session.updateTuneName(tune.id, name))">
+                <div x-show="tune.current">
+                  <div x-text="tune.id"></div>
+                  <input type="text" x-model="tune.name" />
+                  <div x-text="tune.name"></div>
+                </div>
+              </div>
+            </template>
+          </div>
         </div>
       </template>
-    </div>
-
+    </div> 
   <script type="module" src="./ts/main.ts"></script>
   <div id="all" hidden ></div>
+
+        <template>
+        
+      </template>
 </body>
 
 </html>

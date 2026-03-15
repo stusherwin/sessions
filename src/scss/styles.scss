@@ -46,7 +46,17 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .waveform {
+  margin: 20px 0;
   padding: 10px 0;
+}
+
+.session {
+  margin-top: 30px;
+}
+
+.inverted {
+  background: black;
+  color: white;
 }
 
 #root, #__next {
@@ -170,9 +180,4 @@ $handle-size: 20px;
 ::part(region sx-editable)::before,
 ::part(region sx-editable)::after {
   border-color: white;
-}
-
-.inverted {
-  background: black;
-  color: white;
 }

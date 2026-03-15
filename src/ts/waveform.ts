@@ -1,78 +1,151 @@
+'use strict';
 import WaveSurfer from 'wavesurfer.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { Session, Tune } from './session'
+import type { SessionData } from './session'
 
 class Waveform {
   filename: string
   containerSelector: string
   session: Session
-  regions: RegionsPlugin
-  ws: WaveSurfer
+  regions: RegionsPlugin | undefined
+  ws: WaveSurfer | undefined
   zoomTimeout :  number | undefined = undefined
   disableDragSelection : (() => void) | undefined = undefined
   zooming = false
   editing = false
   scrollPosition: number | undefined = undefined
+  subscriptions: (() => void)[] = []
 
   constructor(session: Session) {
     this.filename = session.filename
     this.containerSelector = '.waveform[data-session-id="' + session.id + '"]'
     this.session = session
+    this.session.on('load', () => this.load())
+    this.session.on('unload', () => this.unload())
+    this.session.on('play-pause', () => this.playPause())
+    this.session.on('play-from-start', () => this.playFromStart())
+    this.session.on('skip-to-start', () => this.skipToStart())
+    this.session.on('skip-to-end', () => this.skipToEnd())
+    this.session.on('zoom-in', () => this.zoomIn())
+    this.session.on('zoom-out', () => this.zoomOut())
+    this.session.on('skip-backward', () => this.skipBackward())
+    this.session.on('skip-forward', () => this.skipForward())
+    this.session.on('editing-start', () => this.startEditing())
+    this.session.on('editing-stop', () => this.stopEditing())
+    this.session.on('tune-name-updated', (id, name) => this.songNameUpdated(id, name))
+  }
 
-    this.regions = RegionsPlugin.create()
-    this.ws = WaveSurfer.create({
-      container: this.containerSelector,
-      waveColor: 'black',
-      progressColor: 'black',
-      cursorColor: 'red',
-      url: '/' + this.filename,
-      plugins: [this.regions],
-    })
+  load() {
+    console.log(this.session.id + ': load waveform...')
+    var timeout = setTimeout(() => {
+        console.log(this.session.id + ': after timeout')
+        console.log(this.containerSelector)
+        var el = document.querySelector(this.containerSelector)
+        console.log(el)
+        console.log(this.session.peaks)
+        const initialize = (data: SessionData | undefined) => {
+            this.regions = RegionsPlugin.create()
+            this.ws = WaveSurfer.create({
+                container: this.containerSelector,
+                waveColor: 'black',
+                progressColor: 'black',
+                cursorColor: 'red',
+                url: '/' + this.filename,
+                plugins: [this.regions],
+                peaks: data && data.peaks,
+                duration: data && data.duration
+            })
 
-    this.ws.once('decode', () => {
-      this.session.on('play-pause', () => this.playPause())
-      this.session.on('play-from-start', () => this.playFromStart())
-      this.session.on('skip-to-start', () => this.skipToStart())
-      this.session.on('skip-to-end', () => this.skipToEnd())
-      this.session.on('zoom-in', () => this.zoomIn())
-      this.session.on('zoom-out', () => this.zoomOut())
-      this.session.on('skip-backward', () => this.skipBackward())
-      this.session.on('skip-forward', () => this.skipForward())
-      this.session.on('editing-start', () => this.startEditing())
-      this.session.on('editing-stop', () => this.stopEditing())
-      this.session.on('tune-name-updated', (id, name) => this.songNameUpdated(id, name))
-      this.ws.on('scroll', () => this.scroll())
-      this.ws.on('play', () => this.play())
-      this.ws.on('pause', () => this.pause())
-      this.ws.on('finish', () => this.finish())
-      this.regions.on('region-initialized', r => this.regionInitialized(r));
-      this.regions.on('region-created', r => this.regionCreated(r))
-      this.regions.on('region-update', r => this.regionUpdate(r))
-      this.regions.on('region-updated', r => this.regionUpdated(r))
-      this.regions.on('region-in', r => this.regionIn(r))
-      this.regions.on('region-out', r => this.regionOut(r))
-   })
+            this.subscriptions.push(this.ws.on('loading', percent => this.loading(percent)))
+            this.subscriptions.push(this.ws.once('decode', () => {
+                console.log('decode')
+                if(!this.ws || !this.regions) {
+                    return
+                }
+                console.log(this.session.id + ': on decode')
+                this.subscriptions.push(this.ws.on('scroll', () => this.scroll()))
+                this.subscriptions.push(this.ws.on('play', () => this.play()))
+                this.subscriptions.push(this.ws.on('pause', () => this.pause()))
+                this.subscriptions.push(this.ws.on('finish', () => this.finish()))
+                this.subscriptions.push(this.regions.on('region-initialized', r => this.regionInitialized(r)))
+                this.subscriptions.push(this.regions.on('region-created', r => this.regionCreated(r)))
+                this.subscriptions.push(this.regions.on('region-update', r => this.regionUpdate(r)))
+                this.subscriptions.push(this.regions.on('region-updated', r => this.regionUpdated(r)))
+                this.subscriptions.push(this.regions.on('region-in', r => this.regionIn(r)))
+                this.subscriptions.push(this.regions.on('region-out', r => this.regionOut(r)))
+                this.session.ready = true
+                this.session.peaks = this.ws.exportPeaks()
+                this.session.duration = this.ws.getDuration()
+
+                for(var i = 0; i < this.session.tunes.length; i++) {
+                    var tune = this.session.tunes[i];
+                    this.regions.addRegion({ id: tune.id, content: tune.name, start: tune.startTime, end: tune.endTime, drag: false, resize: false })
+                }
+            }))
+        }
+
+        initialize(this.session.export())
+        clearTimeout(timeout)
+    }, 0);
+  }
+
+  loading(percent: number) {
+    this.session.loading = percent
+  }
+
+  unload() {
+    console.log(this.session.id + ': unload waveform...')
+    for(var i = 0; i < this.subscriptions.length; i++) {
+        this.subscriptions[i]();
+    }
+    this.subscriptions = [];
+    if(!this.ws) {
+        return
+    }
+    this.ws.destroy();
+    this.ws = undefined;
   }
 
   playPause() {
+    if(!this.ws) {
+        return
+    }
+
     this.ws.playPause();
   }
 
   playFromStart() {
+    if(!this.ws) {
+        return
+    }
+
     this.ws.setTime(0);
     this.ws.play();
   }
 
   skipToStart() {
+    if(!this.ws) {
+        return
+    }
+
     this.ws.setTime(0);
   }
 
   skipToEnd() {
+    if(!this.ws) {
+        return
+    }
+
     this.ws.seekTo(1);
   }
 
   zoomIn() {
+    if(!this.ws) {
+        return
+    }
+
     var currentScroll = this.ws.getScroll()
     var total = this.ws.getWrapper().scrollWidth
     var mid = currentScroll + this.ws.getWidth() / 2
@@ -96,6 +169,10 @@ class Waveform {
   }
 
   zoomOut() {
+    if(!this.ws) {
+        return
+    }
+
     var currentScroll = this.ws.getScroll()
     var total = this.ws.getWrapper().scrollWidth
     var mid = currentScroll + this.ws.getWidth() / 2
@@ -119,6 +196,10 @@ class Waveform {
   }
 
   skipBackward() {
+    if(!this.ws) {
+        return
+    }
+
     let tune = this.session.findPrevious(this.ws.getCurrentTime());
     if(tune) {
       this.ws.setTime(tune.startTime + 0.00000001);
@@ -126,6 +207,10 @@ class Waveform {
   }
 
   skipForward() {
+    if(!this.ws) {
+        return
+    }
+
     let tune = this.session.findNext(this.ws.getCurrentTime());
     if(tune) {
       this.ws.setTime(tune.startTime + 0.00000001);
@@ -133,6 +218,10 @@ class Waveform {
   }
 
   startEditing() {
+    if(!this.ws || !this.regions) {
+        return
+    }
+
     this.editing = true
     this.scrollPosition = this.ws.getScroll()
 
@@ -168,6 +257,10 @@ class Waveform {
   }
 
   stopEditing() {
+    if(!this.ws || !this.regions) {
+        return
+    }
+
     var rs = this.regions.getRegions()
     for(var i = 0; i < rs.length; i++) {
       rs[i].resize = false
@@ -203,6 +296,10 @@ class Waveform {
   }
 
   updateLockedState(region : Region | undefined, tune: Tune | undefined) {
+    if(!this.regions) {
+        return
+    }
+
     if(!tune || !region) {
       return
     }
@@ -243,6 +340,10 @@ class Waveform {
   }
 
   scroll() {
+    if(!this.ws) {
+        return
+    }
+
     if(!this.zooming && this.editing && this.scrollPosition) {
       this.ws.setScroll(this.scrollPosition)
       return;
@@ -272,6 +373,10 @@ class Waveform {
   }
 
   regionCreated(region: Region) {
+    if(!this.ws) {
+        return
+    }
+
     let tune = this.session.create(region.start, region.end);
     if(!tune) {
       region.remove()
@@ -294,6 +399,10 @@ class Waveform {
   }
 
   findRegion(regionId: string) : Region | undefined {
+    if(!this.regions) {
+        return
+    }
+
     return this.regions.getRegions().find((r, _) => r.id == regionId)
   }
 
@@ -370,6 +479,10 @@ class Waveform {
   }
 
   songNameUpdated(id: string, name: string) {
+    if(!this.regions) {
+        return
+    }
+
     var r = this.regions.getRegions().find((r, _) => r.id == id)
     if(r) {
       r.setContent(name || '')
