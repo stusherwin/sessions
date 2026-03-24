@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Session manager</title>
+</head>
+
+<body>
+  <div x-data="{ session: undefined, select(s) { if(this.session) { this.session.unload(); } this.session = s; this.session.load() } }">
+    <h1>Tunes</h1>
+
+    <template x-for="t in $store.app.tunes">
+      <div>
+        <h2 x-text="t.name"></h2>
+        <p>Performances:</p>
+        <ul>
+          <template x-for="p in t.performances">
+            <li>
+              <a href="#" x-text="p.sessionName + ' ' + window.formatTime(p.startTime)"></a>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+
+    <h1>Sessions</h1>
+
+    <ul>
+      <template x-for="s in $store.app.sessions">
+        <li>
+          <a href="#" x-text="s.name" @click="select(s)"></a>
+        </li>
+      </template>
+    </ul>
+
+    <template x-if="session">
+      <div class="session">
+        <h2 x-text="session.name"></h2>
+        <div x-show="!session.ready">
+          Loading: <span x-text="session.loading"></span>%
+        </div>
+        <div x-show="session.ready">
+          <div :data-session-id="session.id" class="waveform"></div>
+          <div>
+            <button @click="session.skipToStart()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-start-fill" />
+              </svg>
+            </button>
+            <button @click="session.skipBackward()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-backward-fill" />
+              </svg>
+            </button>
+            <button @click="session.playPause()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use x-show="!session.playing" href="#play-fill" />
+                <use x-show="session.playing" href="#pause-fill" />
+              </svg>
+            </button>
+            <button @click="session.skipForward()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-forward-fill" />
+              </svg>
+            </button>
+            <button @click="session.skipToEnd()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-end-fill" />
+              </svg>
+            </button>
+            <button @click="session.zoomIn()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#zoom-in" />
+              </svg>
+            </button>
+            <button @click="session.zoomOut()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#zoom-out" />
+              </svg>
+            </button>
+            <button @click="session.toggleEditing()" :class="session.editing ? 'inverted' : ''">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#pencil-fill" />
+              </svg>
+            </button>
+          </div>
+
+          <template x-for="tune in session.tunes">
+            <div x-data x-init="$watch('tune.name', name => session.updateTuneName(tune.id, name))">
+              <div x-show="tune.current">
+                <div x-text="tune.id"></div>
+                <input type="text" x-model="tune.tuneName" />
+                <div x-text="tune.tuneName"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  <script type="module" src="./ts/main.ts"></script>
+  <div id="all" hidden ></div>
+
+        <template>
+        
+      </template>
+</body>
+
+</html>

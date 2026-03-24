@@ -1,4 +1,7 @@
 import EventEmitter from './event-emitter'
+import { Tune } from './tune'
+import type { TunePerformanceData } from './tune'
+import { App } from './app'
 
 export type SessionEvents = {
   'load': []
@@ -24,52 +27,42 @@ export interface SessionData {
   filename: string,
   peaks: number[][] | undefined,
   duration: number | undefined,
-  tunes: TuneData[]
-}
-
-export interface TuneData {
-  id: string
-  name: string
-  startTime: number
-  endTime: number,
-  prevNeighbourLocked: boolean
-  nextNeighbourLocked: boolean
+  tunes: TunePerformanceData[]
 }
 
 export class Session extends EventEmitter<SessionEvents> {
+  createTune: (sessionId: string, startTime: number, endTime: number) => Tune
   id: string
   name: string
   filename: string
-  tunes: Tune[] = []
+  tunes: TunePerformance[] = []
   peaks: number[][] | undefined
   duration: number | undefined
-  nextTuneId: number = 1
   loading: number = 0
   ready: boolean = false
   playing: boolean = false
   editing: boolean = false
 
-  constructor(data: SessionData) {
+  constructor(data: SessionData, createTune: (sessionId: string, startTime: number, endTime: number) => Tune) {
     super()
+    this.createTune = createTune
     this.id = data.id
     this.name = data.name
     this.filename = data.filename
     this.peaks = data.peaks
     this.duration = data.duration
-    this.tunes = data.tunes.map(t => new Tune(t.id, t.name, t.startTime, t.endTime))
+    this.tunes = data.tunes.map(t => new TunePerformance(t.id, t.tuneId, t.tuneName, t.startTime, t.endTime))
     console.log(data.tunes)
     console.log(this.tunes)
 
     for(var i = 1; i < this.tunes.length; i++) {
       let prevTune = this.tunes[i - 1]
       let tune = this.tunes[i]
-      let tuneData = data.tunes[i]
 
-      prevTune.nextNeighbour = new TuneNeighbour(tune, tuneData && tuneData.prevNeighbourLocked)
-      tune.prevNeighbour = new TuneNeighbour(prevTune, tuneData && tuneData.prevNeighbourLocked)
+      var locked = prevTune.endTime == tune.startTime
+      prevTune.nextNeighbour = new TunePerformanceNeighbour(tune, locked)
+      tune.prevNeighbour = new TunePerformanceNeighbour(prevTune, locked)
     }
-
-    this.nextTuneId = this.tunes.length + 1
   }
 
   load() {
@@ -85,11 +78,12 @@ export class Session extends EventEmitter<SessionEvents> {
   }  
 
   create(startTime: number, endTime: number) {
-    var newTune = new Tune('tune-' + this.nextTuneId, 'Tune ' + this.nextTuneId, startTime, endTime)
+    var t = this.createTune(this.id, startTime, endTime)
+    var p = t.performances[0]
+    var newTune =  new TunePerformance(p.id, t.id, t.name, p.startTime, p.endTime)
 
     if(!this.tunes.length) {
       this.tunes = [newTune]
-      this.nextTuneId++
       return newTune;
     }
 
@@ -110,26 +104,26 @@ export class Session extends EventEmitter<SessionEvents> {
       if(!pushed && newTune.startTime < tune.startTime && newTune.endTime < tune.startTime) {
         var prevNeighbour = tune.prevNeighbour
         if(prevNeighbour) {
-          prevNeighbour.tune.nextNeighbour = new TuneNeighbour(newTune, prevNeighbour.locked)
+          prevNeighbour.tune.nextNeighbour = new TunePerformanceNeighbour(newTune, prevNeighbour.locked)
         }
         newTune.prevNeighbour = prevNeighbour
-        newTune.nextNeighbour = new TuneNeighbour(tune, false)
+        newTune.nextNeighbour = new TunePerformanceNeighbour(tune, false)
         newAll.push(newTune)
         pushed = true
-        tune.prevNeighbour = new TuneNeighbour(newTune, false)
+        tune.prevNeighbour = new TunePerformanceNeighbour(newTune, false)
       //       [ A ]       [ B ]
       //     <-2->
       } else if(!pushed && newTune.startTime < tune.startTime && tune.startTime < newTune.endTime && newTune.endTime < tune.endTime) {
         var prevNeighbour = tune.prevNeighbour
         if(prevNeighbour) {
-          prevNeighbour.tune.nextNeighbour = new TuneNeighbour(newTune, prevNeighbour.locked)
+          prevNeighbour.tune.nextNeighbour = new TunePerformanceNeighbour(newTune, prevNeighbour.locked)
         }
         newTune.endTime = tune.startTime
         newTune.prevNeighbour = prevNeighbour
-        newTune.nextNeighbour = new TuneNeighbour(tune, true)
+        newTune.nextNeighbour = new TunePerformanceNeighbour(tune, true)
         newAll.push(newTune)
         pushed = true
-        tune.prevNeighbour = new TuneNeighbour(newTune, true)
+        tune.prevNeighbour = new TunePerformanceNeighbour(newTune, true)
       }
 
       newAll.push(tune)
@@ -139,36 +133,35 @@ export class Session extends EventEmitter<SessionEvents> {
       if(!pushed && tune.startTime < newTune.startTime && newTune.startTime < tune.endTime && tune.endTime < newTune.endTime) {
         var nextNeighbour = tune.nextNeighbour
         if(nextNeighbour) {
-          nextNeighbour.tune.prevNeighbour = new TuneNeighbour(newTune, nextNeighbour.locked)
+          nextNeighbour.tune.prevNeighbour = new TunePerformanceNeighbour(newTune, nextNeighbour.locked)
         }
         newTune.startTime = tune.endTime
-        newTune.prevNeighbour = new TuneNeighbour(tune, true)
+        newTune.prevNeighbour = new TunePerformanceNeighbour(tune, true)
         newTune.nextNeighbour = nextNeighbour
-        tune.nextNeighbour = new TuneNeighbour(newTune, true)
+        tune.nextNeighbour = new TunePerformanceNeighbour(newTune, true)
         newAll.push(newTune)
         pushed = true
       //       [ A ]       [ B ]
       //             <-4->
       } else if(!pushed && tune.endTime < newTune.startTime && i == this.tunes.length - 1) {
-        newTune.prevNeighbour = new TuneNeighbour(tune, false)
+        newTune.prevNeighbour = new TunePerformanceNeighbour(tune, false)
         newTune.nextNeighbour = tune.nextNeighbour
-        tune.nextNeighbour = new TuneNeighbour(newTune, false)
+        tune.nextNeighbour = new TunePerformanceNeighbour(newTune, false)
         newAll.push(newTune)
         pushed = true
       }
     }
 
     this.tunes = newAll
-    this.nextTuneId++
 
     return newTune
   }
 
-  find(id: string) : Tune | undefined {
+  find(id: string) : TunePerformance | undefined {
     return this.tunes.find(s => s.id == id)
   }
 
-  findNext(time: number) : Tune | undefined {
+  findNext(time: number) : TunePerformance | undefined {
     for(var i = 0; i < this.tunes.length; i++) {
       var tune = this.tunes[i]
       if(tune.startTime > time) {
@@ -177,7 +170,7 @@ export class Session extends EventEmitter<SessionEvents> {
     }
   }
 
-  findPrevious(time: number) : Tune | undefined {
+  findPrevious(time: number) : TunePerformance | undefined {
     for(var i = this.tunes.length - 1; i >= 0; i--) {
       var tune = this.tunes[i]
       if(tune.startTime < time - delta) {
@@ -256,7 +249,10 @@ export class Session extends EventEmitter<SessionEvents> {
       duration: this.duration,
       tunes: this.tunes.map(t => ({
         id: t.id,
-        name: t.name,
+        sessionId: this.id,
+        sessionName: this.name,
+        tuneId: t.tuneId,
+        tuneName: t.tuneName,
         startTime: t.startTime,
         endTime: t.endTime,
         prevNeighbourLocked: t.prevNeighbour && t.prevNeighbour.locked || false,
@@ -266,28 +262,30 @@ export class Session extends EventEmitter<SessionEvents> {
   }
 }
 
-class TuneNeighbour {
-  tune: Tune
+class TunePerformanceNeighbour {
+  tune: TunePerformance
   locked: boolean
 
-  constructor(tune: Tune, locked: boolean) {
+  constructor(tune: TunePerformance, locked: boolean) {
     this.tune = tune
     this.locked = locked
   }
 }
 
-export class Tune {
+export class TunePerformance {
   id: string
-  name: string
+  tuneId: string
+  tuneName: string
   startTime: number
   endTime: number
   current: boolean = false
-  prevNeighbour: TuneNeighbour | undefined = undefined
-  nextNeighbour: TuneNeighbour | undefined = undefined
+  prevNeighbour: TunePerformanceNeighbour | undefined = undefined
+  nextNeighbour: TunePerformanceNeighbour | undefined = undefined
 
-  constructor(id: string, name: string, startTime: number, endTime: number) {
+  constructor(id: string, tuneId: string, tuneName: string, startTime: number, endTime: number) {
     this.id = id
-    this.name = name
+    this.tuneId = tuneId
+    this.tuneName = tuneName
     this.startTime = startTime
     this.endTime = endTime
   }
@@ -320,12 +318,12 @@ export class Tune {
   lockNeighbours() {
     if(this.prevNeighbour && this.startTime == this.prevNeighbour.tune.endTime) {
       this.prevNeighbour.locked = true;
-      this.prevNeighbour.tune.nextNeighbour = new TuneNeighbour(this, true);
+      this.prevNeighbour.tune.nextNeighbour = new TunePerformanceNeighbour(this, true);
     }
 
     if(this.nextNeighbour && this.endTime == this.nextNeighbour.tune.startTime) {
       this.nextNeighbour.locked = true;
-      this.nextNeighbour.tune.prevNeighbour = new TuneNeighbour(this, true);
+      this.nextNeighbour.tune.prevNeighbour = new TunePerformanceNeighbour(this, true);
     }
   }
 }

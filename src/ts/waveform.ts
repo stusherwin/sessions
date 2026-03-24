@@ -2,7 +2,7 @@
 import WaveSurfer from 'wavesurfer.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
-import { Session, Tune } from './session'
+import { Session, TunePerformance } from './session'
 import type { SessionData } from './session'
 
 class Waveform {
@@ -65,6 +65,26 @@ class Waveform {
                     return
                 }
                 console.log(this.session.id + ': on decode')
+
+                for(var i = 0; i < this.session.tunes.length; i++) {
+                    var tune = this.session.tunes[i];
+                    var region = this.regions.addRegion({ 
+                        id: tune.id, 
+                        content: tune.tuneName, 
+                        start: tune.startTime, 
+                        end: tune.endTime, 
+                        drag: false, 
+                        resize: false 
+                    })
+                    region.element?.part.add('sx-tune')
+                    if(tune.prevNeighbour?.locked) {
+                        region.element?.part.add('sx-locked-left')
+                    }
+                    if(tune.nextNeighbour?.locked) {
+                        region.element?.part.add('sx-locked-right')
+                    }
+                }
+
                 this.subscriptions.push(this.ws.on('scroll', () => this.scroll()))
                 this.subscriptions.push(this.ws.on('play', () => this.play()))
                 this.subscriptions.push(this.ws.on('pause', () => this.pause()))
@@ -78,11 +98,6 @@ class Waveform {
                 this.session.ready = true
                 this.session.peaks = this.ws.exportPeaks()
                 this.session.duration = this.ws.getDuration()
-
-                for(var i = 0; i < this.session.tunes.length; i++) {
-                    var tune = this.session.tunes[i];
-                    this.regions.addRegion({ id: tune.id, content: tune.name, start: tune.startTime, end: tune.endTime, drag: false, resize: false })
-                }
             }))
         }
 
@@ -245,7 +260,9 @@ class Waveform {
 
     var rs = this.regions.getRegions()
     for(var i = 0; i < rs.length; i++) {
-      rs[i].resize = true
+        // console.log(rs[1])
+        rs[i].setOptions({resize: true})
+    //   rs[i].resize = true
       var el = rs[i].element
       if(el) {
         el.part.add('sx-editable')
@@ -263,7 +280,9 @@ class Waveform {
 
     var rs = this.regions.getRegions()
     for(var i = 0; i < rs.length; i++) {
-      rs[i].resize = false
+        rs[i].setOptions({resize: false})
+
+    //   rs[i].resize = false
       var el = rs[i].element
       if(el) {
         el.part.remove('sx-editable')
@@ -295,7 +314,7 @@ class Waveform {
     this.editing = false
   }
 
-  updateLockedState(region : Region | undefined, tune: Tune | undefined) {
+  updateLockedState(region : Region | undefined, tune: TunePerformance | undefined) {
     if(!this.regions) {
         return
     }
@@ -383,7 +402,7 @@ class Waveform {
       return
     }
 
-    region.setOptions({ id : tune.id, content: tune.name, start: tune.startTime, end: tune.endTime })
+    region.setOptions({ id : tune.id, content: tune.tuneName, start: tune.startTime, end: tune.endTime })
     var el = region.element
     if(el) {
       el.part.add('sx-tune')
