@@ -16,7 +16,12 @@
       <div>
         <h2 x-text="session.name"></h2>
         <input type="text" x-model="session.name" />
-        <button @click="loadWaveform(session)">Load</button>
+        <button @click="loadWaveform(session.id, session.name)">Load</button>
+        <ul>
+        <template x-for="tune in session.tunes">
+          <li><a href="#" x-text="tune.tuneName" @click="loadWaveform(session.id, session.name)"></a></li>
+        </template>
+        </ul>
       </div>
     </template>
 
@@ -26,12 +31,18 @@
       <div>
         <h2 x-text="tune.name"></h2>
         <input type="text" x-model="tune.name" />
+        <ul>
+        <template x-for="performance in tune.performances">
+          <li><a href="#" x-text="performance.sessionName" @click="loadWaveform(performance.sessionId, performance.sessionName)"></a></li>
+        </template>
+        </ul>
       </div>
     </template>
 
     <template x-if="waveform">
-      <div @sx-waveform-ready.window="waveform.ready = true"
-           @sx-waveform-loading.window="waveform.loading = $event.detail.loading" >
+      <div @sx:waveform-ready.window="waveform.ready = true"
+           @sx:waveform-loading.window="waveform.loading = $event.detail.loading"
+           @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)" >
         <h1 x-text="waveform.sessionName"></h1>
         <div x-show="!waveform.ready">
           Loading: <span x-text="waveform.loading"></span>%
