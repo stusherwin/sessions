@@ -5,6 +5,7 @@ import iconsRaw from 'bootstrap-icons/bootstrap-icons.svg?raw'
 import WaveSurfer from 'wavesurfer.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
+import EventEmitter from './event-emitter'
 
 var allSvg = document.getElementById('all')
 if(allSvg) {
@@ -14,7 +15,7 @@ if(allSvg) {
 window.Alpine = Alpine
 Alpine.plugin(persist)
 
-interface WaveformData {
+interface Waveform {
   ready: boolean
   loading: number
   sessionId: string
@@ -22,26 +23,26 @@ interface WaveformData {
 }
 
 interface AppData {
-  sessions: SessionData[]
-  tunes: TuneData[]
+  sessions: Session[]
+  tunes: Tune[]
 }
 
-interface SessionData {
+interface Session {
   id: string,
   name: string,
   filename: string,
   peaks: number[][] | undefined,
   duration: number | undefined,
-  tunes: TunePerformanceData[]
+  tunes: TunePerformance[]
 }
 
-interface TuneData {
+interface Tune {
   id: string
   name: string
-  performances: TunePerformanceData[]
+  performances: TunePerformance[]
 }
 
-interface TunePerformanceData {
+interface TunePerformance {
   tuneId: string
   tuneName: string
   sessionId: string
@@ -52,37 +53,35 @@ interface TunePerformanceData {
 
 document.addEventListener('alpine:init', () => {
   Alpine.data('app', () => ({ 
+    sessions: [] as Session[], 
+    tunes: [] as Tune[], 
+    waveform: undefined as Waveform | undefined,
+
     init() {
-      console.log('init')
       window.fetch(new Request("/sessions.json"))
         .then((response) => {
-            if(!response.ok) { 
-                throw new Error('JSON file not found');
-            }
+          if(!response.ok) { 
+              throw new Error('JSON file not found');
+          }
 
-            return response.json() as Promise<AppData>
+          return response.json() as Promise<AppData>
         })
         .then((data : AppData) => {
-            console.log(data)
-            this.sessions = data.sessions
-            this.tunes = data.tunes
+          this.sessions = data.sessions
+          this.tunes = data.tunes
         })
         .catch(err => {
-            console.error(err)
+          console.error(err)
         })
         .finally(() => {
         })
     },
-    sessions: [] as SessionData[], 
-    tunes: [] as TuneData[], 
-    waveform: undefined as WaveformData | undefined,
+
     loadWaveform(sessionId: string, sessionName: string) {
-      console.log(sessionId)
-      console.log(sessionName)
       if(this.waveform) {
         this.waveform.ready = false
         this.waveform.loading = 0
-        this.$dispatch('sx:unload-waveform', this.waveform.sessionId)
+        this.$dispatch('sx:waveform-unloading', this.waveform.sessionId)
         this.waveform = undefined
       }
 
@@ -93,25 +92,20 @@ document.addEventListener('alpine:init', () => {
         loading: 0
       }
 
-      this.$dispatch('sx:load-waveform', sessionId)
-    },
-    createTune(sessionId: string, startTime: number, endTime: number) {
-      console.log('createTune')
-      console.log(sessionId)
-      console.log(startTime)
-      console.log(endTime)
-      var session : SessionData | undefined = undefined
-      for(var s of this.sessions) {
-        if(s.id == sessionId) {
-          session = s
-          break
-        }
+      var session = this.sessions.find(s => s.id == sessionId)
+      if(session) {
+        this.$dispatch('sx:waveform-loading', session)
       }
+    },
+
+    createTune(sessionId: string, startTime: number, endTime: number) {
+      var session = this.sessions.find(s => s.id == sessionId)
 
       var nextTuneId = this.tunes.length + 1
       var tuneId = 'tune-' + nextTuneId
       var tuneName = 'Tune ' + nextTuneId
-      var perf : TunePerformanceData = {
+
+      var perf : TunePerformance = {
         tuneId,
         tuneName,
         sessionId,
@@ -119,11 +113,13 @@ document.addEventListener('alpine:init', () => {
         startTime,
         endTime
       }
-      var tune : TuneData = {
+
+      var tune : Tune = {
         id: tuneId,
         name: tuneName,
         performances: [perf]
       }
+
       this.tunes.push(tune)
       session?.tunes.push(perf)
 
@@ -134,52 +130,280 @@ document.addEventListener('alpine:init', () => {
 
 Alpine.start()
 
-class Session {
-  id: string
-  name: string
-  filename: string
-  peaks: number[][] | undefined
-  duration: number | undefined
-  tunes: TunePerformance[] = []
-  constructor(data: SessionData) {
-    this.id = data.id
-    this.name = data.name
-    this.filename = data.filename
-    this.peaks = data.peaks
-    this.duration = data.duration
-    this.tunes = data.tunes.map(t => new TunePerformance(t.tuneId, t.tuneName, t.startTime, t.endTime))
-    
-    for(var i = 1; i < this.tunes.length; i++) {
-      let prevTune = this.tunes[i - 1]
-      let tune = this.tunes[i]
+const dispatch = (e: string, detail: any) =>
+  dispatchEvent(new CustomEvent(e, { detail }))
 
-      var locked = prevTune.endTime == tune.startTime
-      prevTune.nextNeighbour = new TunePerformanceNeighbour(tune, locked)
-      tune.prevNeighbour = new TunePerformanceNeighbour(prevTune, locked)
+function listen<T>(e: string, handler : (arg: T) => void) : () => void {
+  var listener : EventListener = ((e: CustomEventInit<T>) => {
+    if(!e.detail) {
+      return;
     }
-    console.log(this.tunes)
+    handler(e.detail)
+  })
+  window.addEventListener(e, listener)
+  return () => window.removeEventListener(e, listener)
+}
+
+class WaveformManager {
+  session: Session
+  tuneRegions: TuneRegionManager
+  ws: WaveSurfer
+  subscriptions: (() => void)[] = []
+
+  constructor(session: Session) {
+    this.session = session
+
+    const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
+
+    var regions = RegionsPlugin.create()
+    this.tuneRegions = new TuneRegionManager(session.tunes, regions)
+
+    subscribe(this.tuneRegions.on('tune-region-creating', (startTime, endTime) => 
+      dispatch('sx:tune-creating', { sessionId: this.session.id, startTime, endTime })))
+
+    subscribe(this.tuneRegions.on('tune-region-created', (startTime, _) => 
+      this.ws.setTime(startTime)))
+
+    this.ws = WaveSurfer.create({
+      container: '.waveform[data-session-id="' + session.id + '"]',
+      waveColor: 'black',
+      progressColor: 'black',
+      cursorColor: 'red',
+      url: '/' + this.session.filename,
+      plugins: [regions],
+      peaks: this.session.peaks,
+      duration: this.session.duration
+    })
+
+    subscribe(this.ws.on('loading', percent => 
+      dispatch('sx:waveform-load-progress-updated', { id: this.session.id, loading: percent })))
+
+    subscribe(this.ws.once('decode', () => {
+      this.tuneRegions.init()
+
+      dispatch('sx:waveform-ready', { id: this.session.id })
+    }))
+    
+    subscribe(listen('sx:tune-created', (tune: TunePerformance) => {
+      if(tune.sessionId != this.session.id) {
+        return
+      }
+
+      this.tuneRegions.create(tune)
+    }))
   }
 
-  tryCreateTune(startTime: number, endTime: number) : boolean {
-    console.log('tryCreateTune')
-    console.log(startTime)
-    console.log(endTime)
+  unload() {
+    for(var unsubscribe of this.subscriptions) {
+      unsubscribe();
+    }
+    this.subscriptions = [];
+    this.tuneRegions.unload()
+    this.ws.destroy();
+  }
+}
 
-    if(!this.tunes.length) {
-      window.dispatchEvent(new CustomEvent('sx:tune-creating', { detail: { sessionId: this.id, startTime, endTime } }))    
-      return true
+declare global {
+  // Note the capital "W"
+  interface Window { 
+    waveform: WaveformManager | undefined
+  }
+}
+window.waveform = undefined
+
+listen('sx:waveform-loading', (session: Session) =>
+  setTimeout(() => {
+    window.waveform = new WaveformManager(session)
+  }))
+
+listen('sx:waveform-unloading', (sessionId: string) => {
+  if(window.waveform && window.waveform.session.id == sessionId) {
+    window.waveform.unload()
+  }
+})
+
+class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
+  regions: RegionsPlugin
+  tunes: TuneRegionCollection
+  creating: boolean = false
+  subscriptions: (() => void)[] = []
+  disableDragSelection : (() => void) | undefined = undefined
+
+  constructor(tunes: TunePerformance[], regions: RegionsPlugin) {
+    super()
+ 
+    this.regions = regions
+    this.tunes = new TuneRegionCollection(tunes)
+  }
+
+  init() {
+    this.disableDragSelection = this.regions.enableDragSelection({
+      // color: 'rgba(206.6, 226, 254.6, 0.5)',
+      drag: false
+    })
+
+    for(var tune of this.tunes) {
+      var region = this.regions.addRegion({ 
+        id: tune.tuneId, 
+        content: tune.tuneName, 
+        start: tune.startTime, 
+        end: tune.endTime, 
+        drag: false, 
+        resize: false 
+      })
+      region.element?.part.add('sx-tune')
+      if(tune.prevNeighbour && tune.prevNeighbour.locked) {
+        region.element?.part.add('sx-locked-left')
+      }
+      if(tune.nextNeighbour && tune.nextNeighbour.locked) {
+        region.element?.part.add('sx-locked-right')
+      }
+    }
+    
+    const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
+
+    subscribe(this.regions.on('region-initialized', r => this.onRegionInitialized(r)))
+    subscribe(this.regions.on('region-created', r => this.onRegionCreated(r)))
+  }
+
+  unload() {
+    for(var unsubscribe of this.subscriptions) {
+      unsubscribe();
+    }
+    this.subscriptions = [];
+  }
+
+  findRegion(regionId: string) : Region | undefined {
+    if(!this.regions) {
+        return
     }
 
-    for(var i = 0; i < this.tunes.length; i++) {
-      let tune = this.tunes[i]
-      if(startTime < tune.startTime && tune.endTime < endTime) {
-        return false;
+    return this.regions.getRegions().find((r, _) => r.id == regionId)
+  }
+
+  onRegionInitialized(region: Region) {
+    // different colour for creating tune
+    region.setOptions({ id : 'creating' })
+    this.creating = true
+
+    var el = region.element
+    if(el) {
+      el.part.add('sx-editable')
+      for(var child of el.children) {
+        child.part.add('sx-editable')
+      }
+    }
+  }
+
+  onRegionCreated(region: Region) {
+    if(this.disableDragSelection) {
+      this.disableDragSelection()
+    }
+
+    var tune = this.tunes.tryCreate(region.start, region.end)
+    if(!tune) {
+      region.remove()
+      this.creating = false
+      this.disableDragSelection = this.regions.enableDragSelection({
+        // color: 'rgba(206.6, 226, 254.6, 0.5)',
+        drag: false
+      })
+      return
+    }
+
+    this.emit('tune-region-creating', tune.startTime, tune.endTime)
+  }
+  
+  create(perf: TunePerformance) {
+    var region = this.findRegion("creating")
+
+    if(!region) {
+      this.creating = false
+      this.disableDragSelection = this.regions.enableDragSelection({
+        // color: 'rgba(206.6, 226, 254.6, 0.5)',
+        drag: false
+      })
+      return
+    }
+
+    var tune = this.tunes.add(perf)
+
+    region.setOptions({ id : perf.tuneId, content: perf.tuneName, start: perf.startTime, end: perf.endTime })
+    var el = region.element
+    if(el) {
+      el.part.add('sx-tune')
+      // el.part.add('sx-editable')
+      // for(var j = 0; j < el.children.length; j++) {
+      //   el.children[j].part.add('sx-editable')
+      // }
+    }
+
+    this.updateLockedState(region, tune)
+    this.emit('tune-region-created', region.start, region.end)
+
+    this.creating = false
+    this.disableDragSelection = this.regions.enableDragSelection({
+      // color: 'rgba(206.6, 226, 254.6, 0.5)',
+      drag: false
+    })
+  }
+
+  updateLockedState(region : Region, tune: TuneRegion) {
+    var el = region.element
+    if(el) {
+      el.part.add('sx-tune')
+      // el.part.add('sx-editable')
+      // for(var j = 0; j < el.children.length; j++) {
+      //   el.children[j].part.add('sx-editable')
+      // }
+      if(tune.current) {
+        el.part.add('sx-current')
+      } else {
+        el.part.remove('sx-current')
       }
     }
 
-    for(var i = 0; i < this.tunes.length; i++) {
-      let tune = this.tunes[i]
+    function lock(region: Region | undefined, side: string) {
+      region?.element?.part.add('sx-locked-' + side)
+      var handle = region?.element?.querySelector('::part(region-handle-' + side + ')')
+      handle?.part.add('sx-locked')
+    }
 
+    if(tune.prevNeighbour && tune.prevNeighbour.locked) {
+      lock(region, 'left')
+      var prev = this.findRegion(tune.prevNeighbour.tune.tuneId)
+      lock(prev, 'right')
+    }
+
+    if(tune.nextNeighbour && tune.nextNeighbour.locked) {
+      lock(region, 'right')
+      var next = this.findRegion(tune.nextNeighbour.tune.tuneId)
+      lock(next, 'left')
+    }
+  }
+}
+
+class TuneRegionCollection {
+  tunes: TuneRegion[] = []
+
+  constructor(tunes: TunePerformance[]) {
+    this.tunes = tunes.map(t => new TuneRegion(t.tuneId, t.tuneName, t.startTime, t.endTime))
+    
+    this.lockNeighbours()
+  }
+
+  [Symbol.iterator](): ArrayIterator<TuneRegion> {
+    return this.tunes[Symbol.iterator]()
+  }
+
+  tryCreate(startTime: number, endTime: number) : {startTime: number, endTime: number} | undefined {
+    for(var tune of this.tunes) {
+      if(startTime < tune.startTime && tune.endTime < endTime) {
+        return;
+      }
+    }
+
+    for(var tune of this.tunes) {
       //       [ A ]       [ B ]
       // <-1->
       if(startTime < tune.startTime && endTime < tune.startTime) {
@@ -201,15 +425,11 @@ class Session {
       }
     }
 
-    window.dispatchEvent(new CustomEvent('sx:tune-creating', { detail: { sessionId: this.id, startTime, endTime } }))    
-    return true
+    return { startTime, endTime }
   }
 
-  addTune(perf: TunePerformanceData) : TunePerformance {
-    console.log('addTune')
-    console.log(perf)
-
-    var newTune =  new TunePerformance(perf.tuneId, perf.tuneName, perf.startTime, perf.endTime)
+  add(perf: TunePerformance) : TuneRegion {
+    var newTune =  new TuneRegion(perf.tuneId, perf.tuneName, perf.startTime, perf.endTime)
 
     if(!this.tunes.length) {
       this.tunes = [newTune]
@@ -218,6 +438,7 @@ class Session {
 
     var tunes = []
     var pushed = false
+    
     for(var tune of this.tunes) {
       if(!pushed && newTune.startTime < tune.startTime) {
         tunes.push(newTune)
@@ -225,45 +446,37 @@ class Session {
       }
       tunes.push(tune)
     }
+
     if(!pushed) {
       tunes.push(newTune)
     }
 
-    for(var i = 1; i < tunes.length; i++) {
-      let prevTune = tunes[i - 1]
-      let tune = tunes[i]
-
-      var locked = prevTune.endTime == tune.startTime
-      prevTune.nextNeighbour = new TunePerformanceNeighbour(tune, locked)
-      tune.prevNeighbour = new TunePerformanceNeighbour(prevTune, locked)
-    }
-
     this.tunes = tunes
-
-    console.log(this.tunes)
+    this.lockNeighbours()
 
     return newTune
   }
-}
 
-class TunePerformanceNeighbour {
-  tune: TunePerformance
-  locked: boolean
+  lockNeighbours() {
+    for(var i = 1; i < this.tunes.length; i++) {
+      let prevTune = this.tunes[i - 1]
+      let tune = this.tunes[i]
 
-  constructor(tune: TunePerformance, locked: boolean) {
-    this.tune = tune
-    this.locked = locked
+      var locked = prevTune.endTime == tune.startTime
+      prevTune.nextNeighbour = new TuneRegionNeighbour(tune, locked)
+      tune.prevNeighbour = new TuneRegionNeighbour(prevTune, locked)
+    }    
   }
 }
 
-export class TunePerformance {
+class TuneRegion {
   tuneId: string
   tuneName: string
   startTime: number
   endTime: number
   current: boolean = false
-  prevNeighbour: TunePerformanceNeighbour | undefined = undefined
-  nextNeighbour: TunePerformanceNeighbour | undefined = undefined
+  prevNeighbour: TuneRegionNeighbour | undefined = undefined
+  nextNeighbour: TuneRegionNeighbour | undefined = undefined
 
   constructor(tuneId: string, tuneName: string, startTime: number, endTime: number) {
     this.tuneId = tuneId
@@ -271,347 +484,19 @@ export class TunePerformance {
     this.startTime = startTime
     this.endTime = endTime
   }
+}
 
-  update(startTime: number, endTime: number) {
-    if(this.prevNeighbour) {
-      if(this.prevNeighbour.locked) {
-        this.prevNeighbour.tune.endTime = startTime
-      } else {
-        if(startTime < this.prevNeighbour.tune.endTime) {
-          startTime = this.prevNeighbour.tune.endTime
-        }
-      }
-    }
+class TuneRegionNeighbour {
+  tune: TuneRegion
+  locked: boolean
 
-    if(this.nextNeighbour) {
-      if(this.nextNeighbour.locked) {
-        this.nextNeighbour.tune.startTime = endTime
-      } else {
-        if(this.nextNeighbour.tune.startTime < endTime) {
-          endTime = this.nextNeighbour.tune.startTime
-        }
-      }
-    }
-
-    this.startTime = startTime
-    this.endTime = endTime
-  }
-
-  lockNeighbours() {
-    if(this.prevNeighbour && this.startTime == this.prevNeighbour.tune.endTime) {
-      this.prevNeighbour.locked = true;
-      this.prevNeighbour.tune.nextNeighbour = new TunePerformanceNeighbour(this, true);
-    }
-
-    if(this.nextNeighbour && this.endTime == this.nextNeighbour.tune.startTime) {
-      this.nextNeighbour.locked = true;
-      this.nextNeighbour.tune.prevNeighbour = new TunePerformanceNeighbour(this, true);
-    }
+  constructor(tune: TuneRegion, locked: boolean) {
+    this.tune = tune
+    this.locked = locked
   }
 }
 
-class Waveform {
-  session: Session
-  containerSelector: string
-  regions: RegionsPlugin | undefined
-  ws: WaveSurfer | undefined
-  creating: boolean = false
-  subscriptions: (() => void)[] = []
-  disableDragSelection : (() => void) | undefined = undefined
-
-  constructor(session: Session) {
-    this.containerSelector = '.waveform[data-session-id="' + session.id + '"]'
-    this.session = session
-  }
-
-  load() {
-    console.log(this.session.id + ': load waveform...')
-    var timeout = setTimeout(() => {
-      console.log(this.session.id + ': after timeout')
-      console.log(this.containerSelector)
-      var el = document.querySelector(this.containerSelector)
-      console.log(el)
-      console.log(this.session.peaks)
-      this.regions = RegionsPlugin.create()
-      this.ws = WaveSurfer.create({
-          container: this.containerSelector,
-          waveColor: 'black',
-          progressColor: 'black',
-          cursorColor: 'red',
-          url: '/' + this.session.filename,
-          plugins: [this.regions],
-          peaks: this.session.peaks,
-          duration: this.session.duration
-      })
-
-      this.subscriptions.push(this.ws.on('loading', percent => 
-        dispatchEvent(new CustomEvent('sx:waveform-loading', { detail: { id: this.session.id, loading: percent } }))))
-
-      this.subscriptions.push(this.ws.once('decode', () => {
-        console.log('decode')
-        if(!this.ws || !this.regions) {
-            return
-        }
-
-        console.log(this.session.id + ': on decode')
-
-        this.disableDragSelection = this.regions.enableDragSelection({
-          // color: 'rgba(206.6, 226, 254.6, 0.5)',
-          drag: false
-        })
-
-        dispatchEvent(new CustomEvent('sx:waveform-ready', { detail: { id: this.session.id } }))
-
-        for(var i = 0; i < this.session.tunes.length; i++) {
-          var tune = this.session.tunes[i];
-          var prevTune = i > 0 ? this.session.tunes[i - 1] : undefined;
-          var nextTune = i < this.session.tunes.length - 1 ? this.session.tunes[i + 1] : undefined;
-          var region = this.regions.addRegion({ 
-              id: tune.tuneId, 
-              content: tune.tuneName, 
-              start: tune.startTime, 
-              end: tune.endTime, 
-              drag: false, 
-              resize: false 
-          })
-          console.log(tune)
-          console.log(region)
-          region.element?.part.add('sx-tune')
-          if(prevTune && prevTune.endTime == tune.startTime) {
-              region.element?.part.add('sx-locked-left')
-          }
-          if(nextTune && nextTune.startTime == tune.endTime) {
-              region.element?.part.add('sx-locked-right')
-          }
-        }
-
-        this.subscriptions.push(this.regions.on('region-initialized', r => this.regionInitialized(r)))
-        this.subscriptions.push(this.regions.on('region-created', r => this.regionCreated(r)))
-        var tuneCreatedHandler : EventListener = ((e: CustomEventInit<TunePerformanceData>) => {
-          console.log('tuneCreatedHandler')
-          console.log(e.detail)
-
-          if(!e.detail) {
-            return
-          }
-          this.tuneCreated(e.detail)
-        })
-        window.addEventListener('sx:tune-created', tuneCreatedHandler)
-        this.subscriptions.push(() => window.removeEventListener('sx:tune-created', tuneCreatedHandler))
-      }))
-
-      clearTimeout(timeout)
-    })
-  }
-
-  unload() {
-    console.log(this.session.id + ': unload waveform...')
-    for(var i = 0; i < this.subscriptions.length; i++) {
-        this.subscriptions[i]();
-    }
-    this.subscriptions = [];
-    if(!this.ws) {
-        return
-    }
-    this.ws.destroy();
-    this.ws = undefined;
-  }
-
-  findRegion(regionId: string) : Region | undefined {
-    if(!this.regions) {
-        return
-    }
-
-    return this.regions.getRegions().find((r, _) => r.id == regionId)
-  }
-
-  regionInitialized(region: Region) {
-    console.log('regionInitialized')
-    // different colour for creating tune
-    region.setOptions({ id : 'creating' })
-    this.creating = true
-
-    var el = region.element
-    if(el) {
-      el.part.add('sx-editable')
-      for(var j = 0; j < el.children.length; j++) {
-        el.children[j].part.add('sx-editable')
-      }
-    }
-  }
-
-  regionCreated(region: Region) {
-    console.log('regionCreated')
-    console.log(region)
-     
-    if(!this.regions) {
-        return
-    }
-
-    // window.dispatchEvent(new CustomEvent('sx:region-created', { detail: { start: region.start, end: region.end } }))    
-
-    // set id to "creating"
-    // prevent new regions being created while "creating" region exists 
-    // if tune can be created raise event
-    // listen for event with tune id/start/end
-    // set id to tune id
-    if(this.disableDragSelection) {
-      this.disableDragSelection()
-    }
-
-    if(!this.session.tryCreateTune(region.start, region.end)) {
-      region.remove()
-      this.creating = false
-      this.disableDragSelection = this.regions.enableDragSelection({
-        // color: 'rgba(206.6, 226, 254.6, 0.5)',
-        drag: false
-      })
-      return
-    }
-
-    // region.setOptions({ id : tune.id, content: tune.tuneName, start: tune.startTime, end: tune.endTime })
-    // var el = region.element
-    // if(el) {
-    //   el.part.add('sx-tune')
-    //   el.part.add('sx-editable')
-    //   for(var j = 0; j < el.children.length; j++) {
-    //     el.children[j].part.add('sx-editable')
-    //   }
-    // }
-
-    // this.updateLockedState(region, tune)
-
-    // this.ws.setTime(region.start);
-  }
-
-  tuneCreated(perf: TunePerformanceData) {
-    console.log('tuneCreated')
-    console.log(perf)
-
-    if(!this.ws) {
-        return
-    }
-
-    if(!this.regions) {
-        return
-    }
-
-    if(perf.sessionId != this.session.id) {
-      return
-    }
-
-    var region = this.findRegion("creating")
-
-    if(!region) {
-      this.creating = false
-      this.disableDragSelection = this.regions.enableDragSelection({
-        // color: 'rgba(206.6, 226, 254.6, 0.5)',
-        drag: false
-      })
-      return
-    }
-
-    var tune = this.session.addTune(perf)
-    console.log(tune)
-
-    region.setOptions({ id : perf.tuneId, content: perf.tuneName, start: perf.startTime, end: perf.endTime })
-    var el = region.element
-    if(el) {
-      el.part.add('sx-tune')
-      // el.part.add('sx-editable')
-      // for(var j = 0; j < el.children.length; j++) {
-      //   el.children[j].part.add('sx-editable')
-      // }
-    }
-
-    this.updateLockedState(region, tune)
-
-    this.ws.setTime(region.start);
-    this.creating = false
-    this.disableDragSelection = this.regions.enableDragSelection({
-      // color: 'rgba(206.6, 226, 254.6, 0.5)',
-      drag: false
-    })
-  }
-
-  updateLockedState(region : Region, tune: TunePerformance) {
-      console.log('updateLockedState')
-      var el = region.element
-      if(el) {
-        el.part.add('sx-tune')
-        // el.part.add('sx-editable')
-        // for(var j = 0; j < el.children.length; j++) {
-        //   el.children[j].part.add('sx-editable')
-        // }
-        if(tune.current) {
-          el.part.add('sx-current')
-        } else {
-          el.part.remove('sx-current')
-        }
-      }
-  
-      function lock(region: Region | undefined, side: string) {
-        region?.element?.part.add('sx-locked-' + side)
-        var handle = region?.element?.querySelector('::part(region-handle-' + side + ')')
-        handle?.part.add('sx-locked')
-      }
-  
-      if(tune.prevNeighbour && tune.prevNeighbour.locked) {
-        lock(region, 'left')
-        var prev = this.findRegion(tune.prevNeighbour.tune.tuneId)
-        lock(prev, 'right')
-      }
-      if(tune.nextNeighbour && tune.nextNeighbour.locked) {
-        lock(region, 'right')
-        var next = this.findRegion(tune.nextNeighbour.tune.tuneId)
-        lock(next, 'left')
-      }
-    }
+type TuneRegionManagerEvents = {
+  'tune-region-creating': [number, number]
+  'tune-region-created': [number, number]
 }
-
-declare global {
-  // Note the capital "W"
-  interface Window { 
-    waveforms: { [key: string]: Waveform }
-  }
-}
-window.waveforms = {}
-
-window.fetch(new Request("/sessions.json"))
-  .then((response) => {
-      if(!response.ok) { 
-          throw new Error('JSON file not found');
-      }
-
-      return response.json() as Promise<AppData>
-  })
-  .then((data : AppData) => {
-      console.log(data)
-      for(const sessionData of data.sessions) {
-        var session = new Session(sessionData)
-        window.waveforms[session.id] = new Waveform(session)
-      }
-  })
-  .catch(err => {
-      console.error(err)
-  })
-  .finally(() => {
-  })
-
-window.addEventListener('sx:load-waveform', ((e: CustomEventInit<string>) => {
-  console.log('sx:load-waveform')
-  console.log(e.detail)
-  if(!e.detail) {
-    return;
-  }
-  var waveform = window.waveforms[e.detail]
-  waveform.load()
-}) as EventListener)
-
-window.addEventListener('sx:unload-waveform', ((e: CustomEventInit<string>) => {
-  if(!e.detail) {
-    return;
-  }
-  var waveform = window.waveforms[e.detail]
-  waveform.unload()
-}) as EventListener)

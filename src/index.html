@@ -41,7 +41,7 @@
 
     <template x-if="waveform">
       <div @sx:waveform-ready.window="waveform.ready = true"
-           @sx:waveform-loading.window="waveform.loading = $event.detail.loading"
+           @sx:waveform-load-progress-updated.window="waveform.loading = $event.detail.loading"
            @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)" >
         <h1 x-text="waveform.sessionName"></h1>
         <div x-show="!waveform.ready">
