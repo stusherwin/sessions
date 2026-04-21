@@ -65,13 +65,58 @@
     <template x-if="pageState.page == 'session'">
       <div @sx:waveform-ready.window="pageState.data.ready = true"
            @sx:waveform-load-progress-updated.window="pageState.data.loading = $event.detail.loading"
-           @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)" >
+           @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)"
+           @sx:playing.window="playing = true"
+           @sx:stopped.window="playing = false" >
         <h1 x-text="pageState.data.sessionName"></h1>
         <div x-show="!pageState.data.ready">
           Loading: <span x-text="pageState.data.loading"></span>%
         </div>
         <div x-show="pageState.data.ready">
           <div :data-session-id="pageState.data.sessionId" class="waveform"></div>
+          <div>
+            <button @click="skipToStart()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-start-fill" />
+              </svg>
+            </button>
+            <button @click="skipBackward()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-backward-fill" />
+              </svg>
+            </button>
+            <button @click="playPause()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use x-show="!playing" href="#play-fill" />
+                <use x-show="playing" href="#pause-fill" />
+              </svg>
+            </button>
+            <button @click="skipForward()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-forward-fill" />
+              </svg>
+            </button>
+            <button @click="skipToEnd()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-end-fill" />
+              </svg>
+            </button>
+            <button @click="zoomIn()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#zoom-in" />
+              </svg>
+            </button>
+            <button @click="zoomOut()">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#zoom-out" />
+              </svg>
+            </button>
+            <button @click="toggleEditing()" :class="editing ? 'inverted' : ''">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#pencil-fill" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </template>

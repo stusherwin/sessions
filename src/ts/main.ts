@@ -10,6 +10,7 @@ import type { AlpineComponent } from 'alpinejs'
 
 export const defineComponent = <P, T>(fn: (params: P) => AlpineComponent<T>) => fn
 
+var delta = 5;
 const dispatch = (e: string, detail: any) =>
   dispatchEvent(new CustomEvent(e, { detail }))
 
@@ -72,19 +73,26 @@ interface App {
   sessions: Session[] 
   tunes: Tune[]
   pageState: { page: 'sessions' } | { page: 'tunes' } | { page: 'session', data: Waveform } | { page: 'tune', data: Tune }
-  // waveform: Waveform | undefined
-  // page: 'sessions' | 'tunes' | 'session'
-  // currentTune: Tune | undefined
+  playing: boolean
+  editing: boolean
 
   init: () => void
   loadSession: (sessionId: string, sessionName: string) => void
   createTune: (sessionId: string, startTime: number, endTime: number) => void
+  playFromStart: () => void
+  skipToStart: () => void
+  skipToEnd: () => void
+  skipBackward: () => void
+  skipForward: () => void
+  playPause: () => void
 }
 
 const App = defineComponent<unknown, App>(() => ({ 
   sessions: [], 
   tunes: [], 
   pageState: { page: 'sessions' },
+  playing: false,
+  editing: false,
 
   init() {
     window.fetch(new Request("/sessions.json"))
@@ -184,7 +192,49 @@ const App = defineComponent<unknown, App>(() => ({
     session?.tunes.push(perf)
 
     this.$dispatch('sx:tune-created', perf)
+  },
+
+  playFromStart() {
+    this.$dispatch('sx:play-from-start')
+  },
+
+  skipToStart() {
+    this.$dispatch('sx:skip-to-start')
+  },
+
+  skipToEnd() {
+    this.$dispatch('sx:skip-to-end')
+  },
+
+  skipBackward() {
+    this.$dispatch('sx:skip-backward')
+  },
+
+  skipForward() {
+    this.$dispatch('sx:skip-forward')
+  },
+
+  playPause() {
+    this.$dispatch('sx:play-pause')
+  },
+
+  zoomIn() {
+    this.$dispatch('sx:zoom-in')
+  },
+
+  zoomOut() {
+    this.$dispatch('sx:zoom-out')
+  },
+
+  toggleEditing() {
+    this.editing = !this.editing
+    if(this.editing) {
+        this.$dispatch('sx:editing-start')
+    } else {
+        this.$dispatch('sx:editing-stop')
+    }
   }
+
 }))
 
 document.addEventListener('alpine:init', () => {
@@ -199,6 +249,11 @@ class WaveformManager {
   tuneRegions: TuneRegionManager
   ws: WaveSurfer
   subscriptions: (() => void)[] = []
+  zoomTimeout :  number | undefined = undefined
+  zooming = false
+  editing = false
+  scrollPosition: number | undefined = undefined
+  container: HTMLElement
 
   constructor(session: Session) {
     this.session = session
@@ -214,8 +269,9 @@ class WaveformManager {
     subscribe(this.tuneRegions.on('tune-region-created', (startTime, _) => 
       this.ws.setTime(startTime)))
 
+    this.container = document.querySelector('.waveform[data-session-id="' + session.id + '"]') as HTMLElement
     this.ws = WaveSurfer.create({
-      container: '.waveform[data-session-id="' + session.id + '"]',
+      container: this.container,
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red',
@@ -241,6 +297,20 @@ class WaveformManager {
 
       this.tuneRegions.create(tune)
     }))
+
+    subscribe(this.ws.on('play', () => dispatch('sx:playing', {})))
+    subscribe(this.ws.on('pause', () => dispatch('sx:stopped', {})))
+    subscribe(this.ws.on('finish', () => dispatch('sx:stopped', {})))
+    subscribe(listen('sx:play-pause', () => this.playPause()))
+    subscribe(listen('sx:play-from-start', () => this.playFromStart()))
+    subscribe(listen('sx:skip-to-start', () => this.skipToStart()))
+    subscribe(listen('sx:skip-to-end', () => this.skipToEnd()))
+    subscribe(listen('sx:skip-backward', () => this.skipBackward()))
+    subscribe(listen('sx:skip-forward', () => this.skipForward()))
+    subscribe(listen('sx:zoom-in', () => this.zoomIn()))
+    subscribe(listen('sx:zoom-out', () => this.zoomOut()))
+    subscribe(listen('sx:editing-start', () => this.startEditing()))
+    subscribe(listen('sx:editing-stop', () => this.stopEditing()))
   }
 
   unload() {
@@ -250,6 +320,131 @@ class WaveformManager {
     this.subscriptions = [];
     this.tuneRegions.unload()
     this.ws.destroy();
+  }
+
+  playPause() {
+    this.ws.playPause();
+  }
+
+  playFromStart() {
+    this.ws.setTime(0);
+    this.ws.play();
+  }
+
+  skipToStart() {
+    this.ws.setTime(0);
+  }
+
+  skipToEnd() {
+    this.ws.seekTo(1);
+  }
+
+  skipBackward() {
+    let tune = this.tuneRegions.findPrevious(this.ws.getCurrentTime());
+    if(tune) {
+      this.ws.setTime(tune.startTime + 0.00000001);
+    }
+  }
+
+  skipForward() {
+    let tune = this.tuneRegions.findNext(this.ws.getCurrentTime());
+    if(tune) {
+      this.ws.setTime(tune.startTime + 0.00000001);
+    }
+  }
+
+  zoomIn() {
+    if(!this.ws) {
+        return
+    }
+
+    var currentScroll = this.ws.getScroll()
+    var total = this.ws.getWrapper().scrollWidth
+    var mid = currentScroll + this.ws.getWidth() / 2
+    var percent = (mid / total)
+    var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+    var duration = this.ws.getDuration()
+    var zoomedOut = width / duration
+    var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
+    var targetLevel = Math.min(width, currentLevel * 2)
+    this.zooming = true
+    clearTimeout(this.zoomTimeout)
+    this.ws.zoom(targetLevel)
+    var newTotal = this.ws.getWrapper().scrollWidth
+    var newMid = percent * newTotal
+    var newScroll = newMid - this.ws.getWidth() / 2
+    if(this.editing) {
+      this.scrollPosition = newScroll
+    }
+    this.ws.setScroll(newScroll)
+    this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+  }
+
+  zoomOut() {
+    if(!this.ws) {
+        return
+    }
+
+    var currentScroll = this.ws.getScroll()
+    var total = this.ws.getWrapper().scrollWidth
+    var mid = currentScroll + this.ws.getWidth() / 2
+    var percent = (mid / total)
+    var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+    var duration = this.ws.getDuration()
+    var zoomedOut = width / duration
+    var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
+    var targetLevel = Math.max(zoomedOut, currentLevel / 2)
+    this.zooming = true
+    clearTimeout(this.zoomTimeout)
+    this.ws.zoom(targetLevel)
+    var newTotal = this.ws.getWrapper().scrollWidth
+    var newMid = percent * newTotal
+    var newScroll = newMid - this.ws.getWidth() / 2
+    if(this.editing) {
+      this.scrollPosition = newScroll
+    }
+    this.ws.setScroll(newScroll)
+    this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+  }
+
+  startEditing() {
+    this.editing = true
+    this.scrollPosition = this.ws.getScroll()
+
+    this.ws.setOptions({
+      autoScroll: false,
+      waveColor: 'white',
+      progressColor: 'white',
+      cursorColor: 'red'
+    })
+
+    this.container.classList.add('inverted')
+    var parent = this.ws.getWrapper().parentElement
+    if(parent) {
+      parent.style.overflowX = 'hidden'
+    }
+
+    this.tuneRegions.startEditing()
+  }
+
+  stopEditing() {
+    this.tuneRegions.stopEditing()
+
+    this.ws.setOptions({
+      autoScroll: true,
+      waveColor: 'black',
+      progressColor: 'black',
+      cursorColor: 'red'
+    })
+
+    this.container.classList.remove('inverted')
+    var parent = this.ws.getWrapper().parentElement
+    if(parent) {
+      parent.style.overflowX = 'auto'
+    }
+
+    this.scrollPosition = undefined
+    this.editing = false
   }
 }
 
@@ -286,10 +481,10 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
   }
 
   init() {
-    this.disableDragSelection = this.regions.enableDragSelection({
-      // color: 'rgba(206.6, 226, 254.6, 0.5)',
-      drag: false
-    })
+    // this.disableDragSelection = this.regions.enableDragSelection({
+    //   // color: 'rgba(206.6, 226, 254.6, 0.5)',
+    //   drag: false
+    // })
 
     for(var tune of this.tunes) {
       var region = this.regions.addRegion({ 
@@ -328,6 +523,22 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     }
 
     return this.regions.getRegions().find((r, _) => r.id == regionId)
+  }
+
+  findNext(time: number) : TuneRegion | undefined {
+    for(var tune of this.tunes) {
+      if(tune.startTime > time) {
+        return tune
+      }
+    }
+  }
+
+  findPrevious(time: number) : TuneRegion | undefined {
+    for(var tune of this.tunes.reversed()) {
+      if(tune.startTime < time - delta) {
+        return tune
+      }
+    }
   }
 
   onRegionInitialized(region: Region) {
@@ -381,10 +592,10 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     var el = region.element
     if(el) {
       el.part.add('sx-tune')
-      // el.part.add('sx-editable')
-      // for(var j = 0; j < el.children.length; j++) {
-      //   el.children[j].part.add('sx-editable')
-      // }
+      el.part.add('sx-editable')
+      for(var j = 0; j < el.children.length; j++) {
+        el.children[j].part.add('sx-editable')
+      }
     }
 
     this.updateLockedState(region, tune)
@@ -401,10 +612,10 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     var el = region.element
     if(el) {
       el.part.add('sx-tune')
-      // el.part.add('sx-editable')
-      // for(var j = 0; j < el.children.length; j++) {
-      //   el.children[j].part.add('sx-editable')
-      // }
+      el.part.add('sx-editable')
+      for(var j = 0; j < el.children.length; j++) {
+        el.children[j].part.add('sx-editable')
+      }
       if(tune.current) {
         el.part.add('sx-current')
       } else {
@@ -430,6 +641,48 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
       lock(next, 'left')
     }
   }
+
+  startEditing() {
+    this.disableDragSelection = this.regions.enableDragSelection({
+      // color: 'rgba(206.6, 226, 254.6, 0.5)',
+      drag: false
+    })
+
+    var rs = this.regions.getRegions()
+    for(var i = 0; i < rs.length; i++) {
+        // console.log(rs[1])
+        rs[i].setOptions({resize: true})
+    //   rs[i].resize = true
+      var el = rs[i].element
+      if(el) {
+        el.part.add('sx-editable')
+        for(var j = 0; j < el.children.length; j++) {
+          el.children[j].part.add('sx-editable')
+        }
+      }
+    }
+  }
+
+  stopEditing() {
+    var rs = this.regions.getRegions()
+    for(var i = 0; i < rs.length; i++) {
+        rs[i].setOptions({resize: false})
+
+    //   rs[i].resize = false
+      var el = rs[i].element
+      if(el) {
+        el.part.remove('sx-editable')
+        for(var j = 0; j < el.children.length; j++) {
+          el.children[j].part.remove('sx-editable')
+        }
+      }
+    }
+
+    if(this.disableDragSelection) {
+      this.disableDragSelection()
+      this.disableDragSelection = undefined
+    }
+  }
 }
 
 class TuneRegionCollection {
@@ -443,6 +696,17 @@ class TuneRegionCollection {
 
   [Symbol.iterator](): ArrayIterator<TuneRegion> {
     return this.tunes[Symbol.iterator]()
+  }
+
+  reversed() {
+    var x = this.tunes
+    return {
+      *[Symbol.iterator]() {
+        for(var i = x.length - 1; i >=0; i--) {
+          yield x[i];
+        }
+      }
+    }
   }
 
   tryCreate(startTime: number, endTime: number) : {startTime: number, endTime: number} | undefined {
