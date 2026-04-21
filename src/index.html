@@ -5,50 +5,73 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Session manager</title>
 </head>
 
 <body>
   <div x-data="app">
-    <h1>Sessions</h1>
-
-    <template x-for="session in sessions">
+    <a href="#" @click="loadSessions()">Sessions</a> |
+    <a href="#" @click="loadTunes()">Tunes</a>
+    <template x-if="pageState.page == 'sessions'">
       <div>
-        <h2 x-text="session.name"></h2>
-        <input type="text" x-model="session.name" />
-        <button @click="loadWaveform(session.id, session.name)">Load</button>
+        <h1>Sessions</h1>
+
         <ul>
-        <template x-for="tune in session.tunes">
-          <li><a href="#" x-text="tune.tuneName" @click="loadWaveform(session.id, session.name)"></a></li>
+        <template x-for="session in sessions">
+          <li>
+            <a href="#" x-text="session.name" @click="loadSession(session.id, session.name)"></a>
+            <ul>
+            <template x-for="tune in session.tunes">
+              <li><a href="#" x-text="tune.tuneName" @click="loadSession(session.id, session.name)"></a></li>
+            </template>
+            </ul>
+          </li>
         </template>
         </ul>
       </div>
     </template>
 
-    <h1>Tunes</h1>
-
-    <template x-for="tune in tunes">
+    <template x-if="pageState.page == 'tunes'">
       <div>
-        <h2 x-text="tune.name"></h2>
-        <input type="text" x-model="tune.name" />
+        <h1>Tunes</h1>
+
         <ul>
-        <template x-for="performance in tune.performances">
-          <li><a href="#" x-text="performance.sessionName" @click="loadWaveform(performance.sessionId, performance.sessionName)"></a></li>
+        <template x-for="tune in tunes">
+          <li>
+            <a href="#" x-text="tune.name" @click="loadTune(tune)"></a>
+            <ul>
+            <template x-for="performance in tune.performances">
+              <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.sessionName)"></a></li>
+            </template>
+            </ul>
+          </li>
         </template>
         </ul>
       </div>
     </template>
 
-    <template x-if="waveform">
-      <div @sx:waveform-ready.window="waveform.ready = true"
-           @sx:waveform-load-progress-updated.window="waveform.loading = $event.detail.loading"
+    <template x-if="pageState.page == 'tune'">
+      <div>
+        <h1 x-text="pageState.data.name"></h1>
+        <div x-show="pageState.data">Some tune here</div>
+        <div x-show="!pageState.data">No tune here</div>
+        <ul>
+          <template x-for="performance in pageState.data.performances">
+            <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.sessionName)"></a></li>
+          </template>
+        </ul>
+      </div>
+    </template>
+
+    <template x-if="pageState.page == 'session'">
+      <div @sx:waveform-ready.window="pageState.data.ready = true"
+           @sx:waveform-load-progress-updated.window="pageState.data.loading = $event.detail.loading"
            @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)" >
-        <h1 x-text="waveform.sessionName"></h1>
-        <div x-show="!waveform.ready">
-          Loading: <span x-text="waveform.loading"></span>%
+        <h1 x-text="pageState.data.sessionName"></h1>
+        <div x-show="!pageState.data.ready">
+          Loading: <span x-text="pageState.data.loading"></span>%
         </div>
-        <div x-show="waveform.ready">
-          <div :data-session-id="waveform.sessionId" class="waveform"></div>
+        <div x-show="pageState.data.ready">
+          <div :data-session-id="pageState.data.sessionId" class="waveform"></div>
         </div>
       </div>
     </template>

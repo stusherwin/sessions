@@ -6,6 +6,23 @@ import WaveSurfer from 'wavesurfer.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import EventEmitter from './event-emitter'
+import type { AlpineComponent } from 'alpinejs'
+
+export const defineComponent = <P, T>(fn: (params: P) => AlpineComponent<T>) => fn
+
+const dispatch = (e: string, detail: any) =>
+  dispatchEvent(new CustomEvent(e, { detail }))
+
+function listen<T>(e: string, handler : (arg: T) => void) : () => void {
+  var listener : EventListener = ((e: CustomEventInit<T>) => {
+    if(!e.detail) {
+      return;
+    }
+    handler(e.detail)
+  })
+  window.addEventListener(e, listener)
+  return () => window.removeEventListener(e, listener)
+}
 
 var allSvg = document.getElementById('all')
 if(allSvg) {
@@ -51,98 +68,131 @@ interface TunePerformance {
   endTime: number
 }
 
-document.addEventListener('alpine:init', () => {
-  Alpine.data('app', () => ({ 
-    sessions: [] as Session[], 
-    tunes: [] as Tune[], 
-    waveform: undefined as Waveform | undefined,
+interface App {
+  sessions: Session[] 
+  tunes: Tune[]
+  pageState: { page: 'sessions' } | { page: 'tunes' } | { page: 'session', data: Waveform } | { page: 'tune', data: Tune }
+  // waveform: Waveform | undefined
+  // page: 'sessions' | 'tunes' | 'session'
+  // currentTune: Tune | undefined
 
-    init() {
-      window.fetch(new Request("/sessions.json"))
-        .then((response) => {
-          if(!response.ok) { 
-              throw new Error('JSON file not found');
-          }
+  init: () => void
+  loadSession: (sessionId: string, sessionName: string) => void
+  createTune: (sessionId: string, startTime: number, endTime: number) => void
+}
 
-          return response.json() as Promise<AppData>
-        })
-        .then((data : AppData) => {
-          this.sessions = data.sessions
-          this.tunes = data.tunes
-        })
-        .catch(err => {
-          console.error(err)
-        })
-        .finally(() => {
-        })
-    },
+const App = defineComponent<unknown, App>(() => ({ 
+  sessions: [], 
+  tunes: [], 
+  pageState: { page: 'sessions' },
 
-    loadWaveform(sessionId: string, sessionName: string) {
-      if(this.waveform) {
-        this.waveform.ready = false
-        this.waveform.loading = 0
-        this.$dispatch('sx:waveform-unloading', this.waveform.sessionId)
-        this.waveform = undefined
-      }
+  init() {
+    window.fetch(new Request("/sessions.json"))
+      .then((response) => {
+        if(!response.ok) { 
+            throw new Error('JSON file not found');
+        }
 
-      this.waveform = {
+        return response.json() as Promise<AppData>
+      })
+      .then((data : AppData) => {
+        this.sessions = data.sessions
+        this.tunes = data.tunes
+      })
+      .catch(err => {
+        console.error(err)
+      })
+      .finally(() => {
+      })
+  },
+
+  loadSession(sessionId: string, sessionName: string) {
+    if(this.pageState.page == 'session') {
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+    }
+
+    this.pageState = {
+      page: 'session',
+      data: {
         sessionId,
         sessionName,
         ready: false,
         loading: 0
       }
-
-      var session = this.sessions.find(s => s.id == sessionId)
-      if(session) {
-        this.$dispatch('sx:waveform-loading', session)
-      }
-    },
-
-    createTune(sessionId: string, startTime: number, endTime: number) {
-      var session = this.sessions.find(s => s.id == sessionId)
-
-      var nextTuneId = this.tunes.length + 1
-      var tuneId = 'tune-' + nextTuneId
-      var tuneName = 'Tune ' + nextTuneId
-
-      var perf : TunePerformance = {
-        tuneId,
-        tuneName,
-        sessionId,
-        sessionName: session && session.name || '',
-        startTime,
-        endTime
-      }
-
-      var tune : Tune = {
-        id: tuneId,
-        name: tuneName,
-        performances: [perf]
-      }
-
-      this.tunes.push(tune)
-      session?.tunes.push(perf)
-
-      this.$dispatch('sx:tune-created', perf)
     }
-  }))
+
+    var session = this.sessions.find(s => s.id == sessionId)
+    if(session) {
+      this.$dispatch('sx:waveform-loading', session)
+    }
+  },
+
+  loadTune(tune: Tune) {
+    if(this.pageState.page == 'session') {
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+    }
+
+    this.pageState = {
+      page: 'tune',
+      data: tune
+    }
+  },
+
+  loadSessions() {
+    if(this.pageState.page == 'session') {
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+    }
+
+    this.pageState = {
+      page: 'sessions'
+    }
+  },
+
+  loadTunes() {
+    if(this.pageState.page == 'session') {
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+    }
+
+    this.pageState = {
+      page: 'tunes'
+    }
+  },
+
+  createTune(sessionId: string, startTime: number, endTime: number) {
+    var session = this.sessions.find(s => s.id == sessionId)
+
+    var nextTuneId = this.tunes.length + 1
+    var tuneId = 'tune-' + nextTuneId
+    var tuneName = 'Tune ' + nextTuneId
+
+    var perf : TunePerformance = {
+      tuneId,
+      tuneName,
+      sessionId,
+      sessionName: session && session.name || '',
+      startTime,
+      endTime
+    }
+
+    var tune : Tune = {
+      id: tuneId,
+      name: tuneName,
+      performances: [perf]
+    }
+
+    this.tunes.push(tune)
+    session?.tunes.push(perf)
+
+    this.$dispatch('sx:tune-created', perf)
+  }
+}))
+
+document.addEventListener('alpine:init', () => {
+  Alpine.data('app', App)
 })
 
 Alpine.start()
 
-const dispatch = (e: string, detail: any) =>
-  dispatchEvent(new CustomEvent(e, { detail }))
-
-function listen<T>(e: string, handler : (arg: T) => void) : () => void {
-  var listener : EventListener = ((e: CustomEventInit<T>) => {
-    if(!e.detail) {
-      return;
-    }
-    handler(e.detail)
-  })
-  window.addEventListener(e, listener)
-  return () => window.removeEventListener(e, listener)
-}
 
 class WaveformManager {
   session: Session
@@ -204,7 +254,6 @@ class WaveformManager {
 }
 
 declare global {
-  // Note the capital "W"
   interface Window { 
     waveform: WaveformManager | undefined
   }
