@@ -66,6 +66,7 @@
       <div @sx:waveform-ready.window="pageState.data.ready = true"
            @sx:waveform-load-progress-updated.window="pageState.data.loading = $event.detail.loading"
            @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)"
+           @sx:tune-updating.window="updateTune($event.detail.sessionId, $event.detail.tuneId, $event.detail.startTime, $event.detail.endTime)"
            @sx:playing.window="playing = true"
            @sx:stopped.window="playing = false" >
         <h1 x-text="pageState.data.sessionName"></h1>

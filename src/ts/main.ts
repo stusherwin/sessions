@@ -128,6 +128,7 @@ const App = defineComponent<unknown, App>(() => ({
         loading: 0
       }
     }
+    this.editing = false
 
     var session = this.sessions.find(s => s.id == sessionId)
     if(session) {
@@ -144,6 +145,7 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'tune',
       data: tune
     }
+    this.editing = false
   },
 
   loadSessions() {
@@ -154,6 +156,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'sessions'
     }
+    this.editing = false
   },
 
   loadTunes() {
@@ -164,10 +167,15 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'tunes'
     }
+    this.editing = false
   },
 
   createTune(sessionId: string, startTime: number, endTime: number) {
     var session = this.sessions.find(s => s.id == sessionId)
+
+    if(!session) {
+      return
+    }
 
     var nextTuneId = this.tunes.length + 1
     var tuneId = 'tune-' + nextTuneId
@@ -177,7 +185,7 @@ const App = defineComponent<unknown, App>(() => ({
       tuneId,
       tuneName,
       sessionId,
-      sessionName: session && session.name || '',
+      sessionName: session.name || '',
       startTime,
       endTime
     }
@@ -189,9 +197,28 @@ const App = defineComponent<unknown, App>(() => ({
     }
 
     this.tunes.push(tune)
-    session?.tunes.push(perf)
+    session.tunes.push(perf)
 
     this.$dispatch('sx:tune-created', perf)
+  },
+
+  updateTune(sessionId: string, tuneId: string, startTime: number, endTime: number) {
+    console.log('updateTune: ' + tuneId)
+    var session = this.sessions.find(s => s.id == sessionId)
+    var tune = this.tunes.find(t => t.id == tuneId)
+    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
+    var tunePerf = tune?.performances.find(t => t.tuneId == tuneId)
+
+    if(!sessionPerf || !tunePerf) {
+      return
+    }
+
+    sessionPerf.startTime = startTime
+    sessionPerf.endTime = endTime
+    tunePerf.startTime = startTime
+    tunePerf.endTime = endTime
+
+    this.$dispatch('sx:tune-updated', sessionPerf)
   },
 
   playFromStart() {
@@ -269,6 +296,11 @@ class WaveformManager {
     subscribe(this.tuneRegions.on('tune-region-created', (startTime, _) => 
       this.ws.setTime(startTime)))
 
+    subscribe(this.tuneRegions.on('tune-region-updating', (tuneId, startTime, endTime) => 
+      dispatch('sx:tune-updating', { sessionId: this.session.id, tuneId, startTime, endTime })))
+
+    subscribe(this.tuneRegions.on('tune-region-updated', (tuneId, startTime, endTime) => {}))
+
     this.container = document.querySelector('.waveform[data-session-id="' + session.id + '"]') as HTMLElement
     this.ws = WaveSurfer.create({
       container: this.container,
@@ -296,6 +328,14 @@ class WaveformManager {
       }
 
       this.tuneRegions.create(tune)
+    }))
+    
+    subscribe(listen('sx:tune-updated', (tune: TunePerformance) => {
+      if(tune.sessionId != this.session.id) {
+        return
+      }
+
+      this.tuneRegions.update(tune)
     }))
 
     subscribe(this.ws.on('play', () => dispatch('sx:playing', {})))
@@ -508,6 +548,8 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
 
     subscribe(this.regions.on('region-initialized', r => this.onRegionInitialized(r)))
     subscribe(this.regions.on('region-created', r => this.onRegionCreated(r)))
+    subscribe(this.regions.on('region-update', r => this.regionUpdate(r)))
+    subscribe(this.regions.on('region-updated', r => this.regionUpdated(r)))
   }
 
   unload() {
@@ -608,8 +650,60 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     })
   }
 
-  updateLockedState(region : Region, tune: TuneRegion) {
-    var el = region.element
+  regionUpdate(region: Region) {
+    let tune = this.tunes.find(region.id);
+
+    if(!tune) {
+      return
+    }
+
+    tune.update(region.start, region.end)
+    region.setOptions({ start: tune.startTime, end: tune.endTime })
+
+    this.updateLockedState(region, tune)
+
+    if(tune.prevNeighbour) {
+      var prevRegion = this.findRegion(tune.prevNeighbour.tune.tuneId)
+      prevRegion?.setOptions({ start: tune.prevNeighbour.tune.startTime, end: tune.prevNeighbour.tune.endTime })
+      this.updateLockedState(prevRegion, tune.prevNeighbour?.tune)
+    }
+
+    if(tune.nextNeighbour) {
+      var nextRegion = this.findRegion(tune.nextNeighbour.tune.tuneId)
+      nextRegion?.setOptions({ start: tune.nextNeighbour.tune.startTime, end: tune.nextNeighbour.tune.endTime })
+      this.updateLockedState(nextRegion, tune.nextNeighbour?.tune)
+    }
+  }
+
+  regionUpdated(region: Region) {
+    let tune = this.tunes.find(region.id);
+
+    if(!tune) {
+      return
+    }
+
+    tune.lockNeighbours()
+    this.updateLockedState(region, tune)
+    this.emit('tune-region-updating', tune.tuneId, tune.startTime, tune.endTime)
+
+    if(tune.prevNeighbour) {
+      var prevRegion = this.findRegion(tune.prevNeighbour.tune.tuneId)
+      this.updateLockedState(prevRegion, tune.prevNeighbour?.tune)
+      this.emit('tune-region-updating', tune.prevNeighbour.tune.tuneId, tune.prevNeighbour.tune.startTime, tune.prevNeighbour.tune.endTime)
+    }
+
+    if(tune.nextNeighbour) {
+      var nextRegion = this.findRegion(tune.nextNeighbour.tune.tuneId)
+      this.updateLockedState(nextRegion, tune.nextNeighbour?.tune)
+      this.emit('tune-region-updating', tune.nextNeighbour.tune.tuneId, tune.nextNeighbour.tune.startTime, tune.nextNeighbour.tune.endTime)
+    }
+  }
+
+  update(perf: TunePerformance) {
+  }
+
+  updateLockedState(region : Region | undefined, tune: TuneRegion) {
+    var el = region?.element
     if(el) {
       el.part.add('sx-tune')
       el.part.add('sx-editable')
@@ -689,7 +783,9 @@ class TuneRegionCollection {
   tunes: TuneRegion[] = []
 
   constructor(tunes: TunePerformance[]) {
-    this.tunes = tunes.map(t => new TuneRegion(t.tuneId, t.tuneName, t.startTime, t.endTime))
+    this.tunes = tunes
+      .map(t => new TuneRegion(t.tuneId, t.tuneName, t.startTime, t.endTime))
+      .sort((a, b) => a.startTime - b.startTime)
     
     this.lockNeighbours()
   }
@@ -707,6 +803,10 @@ class TuneRegionCollection {
         }
       }
     }
+  }
+
+  find(id: string) : TuneRegion | undefined {
+    return this.tunes.find(s => s.tuneId == id)
   }
 
   tryCreate(startTime: number, endTime: number) : {startTime: number, endTime: number} | undefined {
@@ -771,7 +871,9 @@ class TuneRegionCollection {
   }
 
   lockNeighbours() {
+    console.log(this.tunes[0])
     for(var i = 1; i < this.tunes.length; i++) {
+      console.log(this.tunes[i])
       let prevTune = this.tunes[i - 1]
       let tune = this.tunes[i]
 
@@ -797,6 +899,43 @@ class TuneRegion {
     this.startTime = startTime
     this.endTime = endTime
   }
+
+  update(startTime: number, endTime: number) {
+    if(this.prevNeighbour) {
+      if(this.prevNeighbour.locked) {
+        this.prevNeighbour.tune.endTime = startTime
+      } else {
+        if(startTime < this.prevNeighbour.tune.endTime) {
+          startTime = this.prevNeighbour.tune.endTime
+        }
+      }
+    }
+
+    if(this.nextNeighbour) {
+      if(this.nextNeighbour.locked) {
+        this.nextNeighbour.tune.startTime = endTime
+      } else {
+        if(this.nextNeighbour.tune.startTime < endTime) {
+          endTime = this.nextNeighbour.tune.startTime
+        }
+      }
+    }
+
+    this.startTime = startTime
+    this.endTime = endTime
+  }
+
+  lockNeighbours() {
+    if(this.prevNeighbour && this.startTime == this.prevNeighbour.tune.endTime) {
+      this.prevNeighbour.locked = true;
+      this.prevNeighbour.tune.nextNeighbour = new TuneRegionNeighbour(this, true);
+    }
+
+    if(this.nextNeighbour && this.endTime == this.nextNeighbour.tune.startTime) {
+      this.nextNeighbour.locked = true;
+      this.nextNeighbour.tune.prevNeighbour = new TuneRegionNeighbour(this, true);
+    }
+  }
 }
 
 class TuneRegionNeighbour {
@@ -812,4 +951,6 @@ class TuneRegionNeighbour {
 type TuneRegionManagerEvents = {
   'tune-region-creating': [number, number]
   'tune-region-created': [number, number]
+  'tune-region-updating': [string, number, number]
+  'tune-region-updated': [string, number, number]
 }
