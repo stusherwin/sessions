@@ -118,6 +118,16 @@
               </svg>
             </button>
           </div>
+
+          <template x-for="tune in pageState.data.tunes">
+            <div x-data x-init="$watch('tune.tuneName', name => updateTuneName(pageState.data.sessionId, tune.tuneId, name))">
+              <!-- <div x-show="tune.current"> -->
+                <div x-text="tune.tuneId"></div>
+                <input type="text" x-model="tune.tuneName" />
+                <div x-text="tune.tuneName"></div>
+              <!-- </div> -->
+            </div>
+          </template>
         </div>
       </div>
     </template>

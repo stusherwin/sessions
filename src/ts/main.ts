@@ -38,6 +38,7 @@ interface Waveform {
   loading: number
   sessionId: string
   sessionName: string
+  tunes: TunePerformance[]
 }
 
 interface AppData {
@@ -119,21 +120,24 @@ const App = defineComponent<unknown, App>(() => ({
       this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
     }
 
+    var session = this.sessions.find(s => s.id == sessionId)
+    if(!session) {
+      return
+    }
+
     this.pageState = {
       page: 'session',
       data: {
         sessionId,
         sessionName,
         ready: false,
-        loading: 0
+        loading: 0,
+        tunes: session.tunes
       }
     }
     this.editing = false
 
-    var session = this.sessions.find(s => s.id == sessionId)
-    if(session) {
-      this.$dispatch('sx:waveform-loading', session)
-    }
+    this.$dispatch('sx:waveform-loading', session)
   },
 
   loadTune(tune: Tune) {
@@ -203,7 +207,6 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   updateTune(sessionId: string, tuneId: string, startTime: number, endTime: number) {
-    console.log('updateTune: ' + tuneId)
     var session = this.sessions.find(s => s.id == sessionId)
     var tune = this.tunes.find(t => t.id == tuneId)
     var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
@@ -219,6 +222,23 @@ const App = defineComponent<unknown, App>(() => ({
     tunePerf.endTime = endTime
 
     this.$dispatch('sx:tune-updated', sessionPerf)
+  },
+
+  updateTuneName(sessionId: string, tuneId: string, name: string) {
+    var session = this.sessions.find(s => s.id == sessionId)
+    var tune = this.tunes.find(t => t.id == tuneId)
+    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
+    var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
+
+    if(!tune || !session || !sessionPerf || !tunePerf) {
+      return
+    }
+
+    tune.name = name
+    sessionPerf.tuneName = name
+    tunePerf.tuneName = name
+
+    this.$dispatch('sx:tune-name-updated', sessionPerf)
   },
 
   playFromStart() {
@@ -336,6 +356,14 @@ class WaveformManager {
       }
 
       this.tuneRegions.update(tune)
+    }))
+    
+    subscribe(listen('sx:tune-name-updated', (tune: TunePerformance) => {
+      if(tune.sessionId != this.session.id) {
+        return
+      }
+
+      this.tuneRegions.updateName(tune)
     }))
 
     subscribe(this.ws.on('play', () => dispatch('sx:playing', {})))
@@ -699,6 +727,18 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     }
   }
 
+  updateName(perf: TunePerformance) {
+    let region = this.findRegion(perf.tuneId)
+    let tune = this.tunes.find(perf.tuneId);
+
+    if(!region || !tune) {
+      return
+    }
+
+    region.setContent(perf.tuneName || '')
+    tune.updateName(perf.tuneName)
+  }
+
   update(perf: TunePerformance) {
   }
 
@@ -871,9 +911,7 @@ class TuneRegionCollection {
   }
 
   lockNeighbours() {
-    console.log(this.tunes[0])
     for(var i = 1; i < this.tunes.length; i++) {
-      console.log(this.tunes[i])
       let prevTune = this.tunes[i - 1]
       let tune = this.tunes[i]
 
@@ -898,6 +936,10 @@ class TuneRegion {
     this.tuneName = tuneName
     this.startTime = startTime
     this.endTime = endTime
+  }
+
+  updateName(name: string) {
+    this.tuneName = name
   }
 
   update(startTime: number, endTime: number) {
