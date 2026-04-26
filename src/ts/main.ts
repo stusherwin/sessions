@@ -38,7 +38,8 @@ interface Waveform {
   loading: number
   sessionId: string
   sessionName: string
-  tunes: TunePerformance[]
+  tunes: TunePerformance[],
+  currentTune: string | undefined
 }
 
 interface AppData {
@@ -80,6 +81,9 @@ interface App {
   init: () => void
   loadSession: (sessionId: string, sessionName: string) => void
   createTune: (sessionId: string, startTime: number, endTime: number) => void
+  updateTune: (sessionId: string, tuneId: string, startTime: number, endTime: number) => void
+  updateTuneName: (sessionId: string, tuneId: string, name: string) => void
+  updateCurrentTune: (sessionId: string, tuneId: string | undefined) => void
   playFromStart: () => void
   skipToStart: () => void
   skipToEnd: () => void
@@ -115,7 +119,7 @@ const App = defineComponent<unknown, App>(() => ({
       })
   },
 
-  loadSession(sessionId: string, sessionName: string) {
+  loadSession(sessionId: string, tuneId: string | undefined = undefined) {
     if(this.pageState.page == 'session') {
       this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
     }
@@ -129,20 +133,26 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'session',
       data: {
         sessionId,
-        sessionName,
+        sessionName: session.name,
         ready: false,
         loading: 0,
-        tunes: session.tunes
+        tunes: session.tunes,
+        currentTune: undefined
       }
     }
     this.editing = false
 
-    this.$dispatch('sx:waveform-loading', session)
+    this.$dispatch('sx:waveform-loading', { session: session, tuneId: tuneId })
   },
 
-  loadTune(tune: Tune) {
+  loadTune(tuneId: string) {
     if(this.pageState.page == 'session') {
       this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+    }
+
+    var tune = this.tunes.find(t => t.id == tuneId)
+    if(!tune) {
+      return
     }
 
     this.pageState = {
@@ -241,6 +251,14 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:tune-name-updated', sessionPerf)
   },
 
+  updateCurrentTune(sessionId: string, tuneId: string | undefined) {
+    if(this.pageState.page != 'session' || this.pageState.data.sessionId != sessionId) {
+      return
+    }
+
+    this.pageState.data.currentTune = tuneId
+  },
+
   playFromStart() {
     this.$dispatch('sx:play-from-start')
   },
@@ -290,9 +308,14 @@ document.addEventListener('alpine:init', () => {
 
 Alpine.start()
 
+interface WaveformData {
+  session: Session
+  tuneId: string | undefined
+}
 
 class WaveformManager {
   session: Session
+  initialTuneId: string | undefined
   tuneRegions: TuneRegionManager
   ws: WaveSurfer
   subscriptions: (() => void)[] = []
@@ -302,13 +325,14 @@ class WaveformManager {
   scrollPosition: number | undefined = undefined
   container: HTMLElement
 
-  constructor(session: Session) {
-    this.session = session
+  constructor(data: WaveformData) {
+    this.session = data.session
+    this.initialTuneId = data.tuneId
 
     const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
 
     var regions = RegionsPlugin.create()
-    this.tuneRegions = new TuneRegionManager(session.tunes, regions)
+    this.tuneRegions = new TuneRegionManager(this.session.tunes, regions)
 
     subscribe(this.tuneRegions.on('tune-region-creating', (startTime, endTime) => 
       dispatch('sx:tune-creating', { sessionId: this.session.id, startTime, endTime })))
@@ -320,8 +344,10 @@ class WaveformManager {
       dispatch('sx:tune-updating', { sessionId: this.session.id, tuneId, startTime, endTime })))
 
     subscribe(this.tuneRegions.on('tune-region-updated', (tuneId, startTime, endTime) => {}))
+    subscribe(this.tuneRegions.on('current-tune-region-changed', (tuneId) => 
+      dispatch('sx:current-tune-changed', { sessionId: this.session.id, tuneId })))
 
-    this.container = document.querySelector('.waveform[data-session-id="' + session.id + '"]') as HTMLElement
+    this.container = document.querySelector('.waveform[data-session-id="' + this.session.id + '"]') as HTMLElement
     this.ws = WaveSurfer.create({
       container: this.container,
       waveColor: 'black',
@@ -340,6 +366,12 @@ class WaveformManager {
       this.tuneRegions.init()
 
       dispatch('sx:waveform-ready', { id: this.session.id })
+      if(this.initialTuneId) {
+        var region = this.tuneRegions.findRegion(this.initialTuneId)
+        if(region) {
+          this.ws.setTime(region.start)
+        }
+      }
     }))
     
     subscribe(listen('sx:tune-created', (tune: TunePerformance) => {
@@ -523,9 +555,9 @@ declare global {
 }
 window.waveform = undefined
 
-listen('sx:waveform-loading', (session: Session) =>
+listen('sx:waveform-loading', (data: WaveformData) =>
   setTimeout(() => {
-    window.waveform = new WaveformManager(session)
+    window.waveform = new WaveformManager(data)
   }))
 
 listen('sx:waveform-unloading', (sessionId: string) => {
@@ -549,11 +581,6 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
   }
 
   init() {
-    // this.disableDragSelection = this.regions.enableDragSelection({
-    //   // color: 'rgba(206.6, 226, 254.6, 0.5)',
-    //   drag: false
-    // })
-
     for(var tune of this.tunes) {
       var region = this.regions.addRegion({ 
         id: tune.tuneId, 
@@ -578,6 +605,8 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     subscribe(this.regions.on('region-created', r => this.onRegionCreated(r)))
     subscribe(this.regions.on('region-update', r => this.regionUpdate(r)))
     subscribe(this.regions.on('region-updated', r => this.regionUpdated(r)))
+    subscribe(this.regions.on('region-in', r => this.regionIn(r)))
+    subscribe(this.regions.on('region-out', r => this.regionOut(r)))
   }
 
   unload() {
@@ -784,9 +813,7 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
 
     var rs = this.regions.getRegions()
     for(var i = 0; i < rs.length; i++) {
-        // console.log(rs[1])
-        rs[i].setOptions({resize: true})
-    //   rs[i].resize = true
+      rs[i].setOptions({resize: true})
       var el = rs[i].element
       if(el) {
         el.part.add('sx-editable')
@@ -800,9 +827,7 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
   stopEditing() {
     var rs = this.regions.getRegions()
     for(var i = 0; i < rs.length; i++) {
-        rs[i].setOptions({resize: false})
-
-    //   rs[i].resize = false
+      rs[i].setOptions({resize: false})
       var el = rs[i].element
       if(el) {
         el.part.remove('sx-editable')
@@ -817,6 +842,50 @@ class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
       this.disableDragSelection = undefined
     }
   }
+  
+  regionIn(region: Region) {
+    var oldCurrent = this.tunes.getCurrent()
+    this.tunes.in(region.id)
+    var current = this.tunes.getCurrent()
+    if(oldCurrent?.tuneId !== current?.tuneId) {
+      this.emit('current-tune-region-changed', current?.tuneId)
+    }
+
+    for(var tune of this.tunes) {
+      var r = this.findRegion(tune.tuneId)
+      if(tune.current) {
+        r?.element?.part.add('sx-current')
+      } else {
+        r?.element?.part.remove('sx-current')
+      }
+    }
+  }
+
+  regionOut(region: Region) {
+    var oldCurrent = this.tunes.getCurrent()
+    this.tunes.out(region.id)
+    var current = this.tunes.getCurrent()
+    if(oldCurrent?.tuneId !== current?.tuneId) {
+      this.emit('current-tune-region-changed', current?.tuneId)
+    }
+
+    for(var tune of this.tunes) {
+      var r = this.findRegion(tune.tuneId)
+      if(tune.current) {
+        r?.element?.part.add('sx-current')
+      } else {
+        r?.element?.part.remove('sx-current')
+      }
+    }
+  }
+}
+
+type TuneRegionManagerEvents = {
+  'tune-region-creating': [number, number]
+  'tune-region-created': [number, number]
+  'tune-region-updating': [string, number, number]
+  'tune-region-updated': [string, number, number]
+  'current-tune-region-changed': [string | undefined]
 }
 
 class TuneRegionCollection {
@@ -846,7 +915,27 @@ class TuneRegionCollection {
   }
 
   find(id: string) : TuneRegion | undefined {
-    return this.tunes.find(s => s.tuneId == id)
+    return this.tunes.find(t => t.tuneId == id)
+  }
+
+  getCurrent() : TuneRegion | undefined {
+    return this.tunes.find(t => t.current)
+  }
+
+  in(id: string) {
+    for(var i = 0; i < this.tunes.length; i++) {
+      let tune = this.tunes[i]
+      tune.current = tune.tuneId === id
+    }
+  }
+
+  out(id: string) {
+    for(var i = 0; i < this.tunes.length; i++) {
+      let tune = this.tunes[i]
+      if(tune.tuneId === id) {
+        tune.current = false
+      }
+    }
   }
 
   tryCreate(startTime: number, endTime: number) : {startTime: number, endTime: number} | undefined {
@@ -988,11 +1077,4 @@ class TuneRegionNeighbour {
     this.tune = tune
     this.locked = locked
   }
-}
-
-type TuneRegionManagerEvents = {
-  'tune-region-creating': [number, number]
-  'tune-region-created': [number, number]
-  'tune-region-updating': [string, number, number]
-  'tune-region-updated': [string, number, number]
 }

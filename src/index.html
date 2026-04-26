@@ -18,10 +18,10 @@
         <ul>
         <template x-for="session in sessions">
           <li>
-            <a href="#" x-text="session.name" @click="loadSession(session.id, session.name)"></a>
+            <a href="#" x-text="session.name" @click="loadSession(session.id)"></a>
             <ul>
             <template x-for="tune in session.tunes">
-              <li><a href="#" x-text="tune.tuneName" @click="loadSession(session.id, session.name)"></a></li>
+              <li><a href="#" x-text="tune.tuneName" @click="loadTune(tune.tuneId)"></a></li>
             </template>
             </ul>
           </li>
@@ -37,10 +37,10 @@
         <ul>
         <template x-for="tune in tunes">
           <li>
-            <a href="#" x-text="tune.name" @click="loadTune(tune)"></a>
+            <a href="#" x-text="tune.name" @click="loadTune(tune.id)"></a>
             <ul>
             <template x-for="performance in tune.performances">
-              <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.sessionName)"></a></li>
+              <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.tuneId)"></a></li>
             </template>
             </ul>
           </li>
@@ -56,7 +56,7 @@
         <div x-show="!pageState.data">No tune here</div>
         <ul>
           <template x-for="performance in pageState.data.performances">
-            <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.sessionName)"></a></li>
+            <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.tuneId)"></a></li>
           </template>
         </ul>
       </div>
@@ -67,8 +67,9 @@
            @sx:waveform-load-progress-updated.window="pageState.data.loading = $event.detail.loading"
            @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)"
            @sx:tune-updating.window="updateTune($event.detail.sessionId, $event.detail.tuneId, $event.detail.startTime, $event.detail.endTime)"
+           @sx:current-tune-changed.window="updateCurrentTune($event.detail.sessionId, $event.detail.tuneId)"
            @sx:playing.window="playing = true"
-           @sx:stopped.window="playing = false" >
+           @sx:stopped.window="playing = false">
         <h1 x-text="pageState.data.sessionName"></h1>
         <div x-show="!pageState.data.ready">
           Loading: <span x-text="pageState.data.loading"></span>%
@@ -121,11 +122,11 @@
 
           <template x-for="tune in pageState.data.tunes">
             <div x-data x-init="$watch('tune.tuneName', name => updateTuneName(pageState.data.sessionId, tune.tuneId, name))">
-              <!-- <div x-show="tune.current"> -->
-                <div x-text="tune.tuneId"></div>
-                <input type="text" x-model="tune.tuneName" />
-                <div x-text="tune.tuneName"></div>
-              <!-- </div> -->
+              <div x-show="pageState.data.currentTune == tune.tuneId">
+                <h2 x-show="!editing" x-text="tune.tuneName"></h2>
+                <input x-show="editing" type="text" x-model="tune.tuneName" />
+                <a href="#" x-text="tune.tuneName" @click="loadTune(tune.tuneId)"></a>
+              </div>
             </div>
           </template>
         </div>
