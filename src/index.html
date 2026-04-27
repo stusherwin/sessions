@@ -123,8 +123,15 @@
           <template x-for="tune in pageState.data.tunes">
             <div x-data x-init="$watch('tune.tuneName', name => updateTuneName(pageState.data.sessionId, tune.tuneId, name))">
               <div x-show="pageState.data.currentTune == tune.tuneId">
-                <h2 x-show="!editing" x-text="tune.tuneName"></h2>
-                <input x-show="editing" type="text" x-model="tune.tuneName" />
+                <h2>
+                  <span x-show="!editing" x-text="tune.tuneName"></span>
+                  <input x-show="editing" type="text" x-model="tune.tuneName" />
+                </h2>
+                <button x-show="editing" @click="deleteTunePerformance(pageState.data.sessionId, tune.tuneId)">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#trash-fill" />
+                  </svg>
+                </button>
                 <a href="#" x-text="tune.tuneName" @click="loadTune(tune.tuneId)"></a>
               </div>
             </div>
