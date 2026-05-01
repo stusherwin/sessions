@@ -1,7 +1,6 @@
-import EventEmitter from './event-emitter'
+import EventEmitter from '../event-emitter'
 import { Tune } from './tune'
 import type { TunePerformanceData } from './tune'
-import { App } from './app'
 
 export type SessionEvents = {
   'load': []

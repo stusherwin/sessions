@@ -1,14 +1,13 @@
 import type { AlpineComponent } from 'alpinejs'
 import type { Session, Tune, TunePerformance } from './data.ts'
+import { log } from './common.ts'
 
 export const defineComponent = <P, T>(fn: (params: P) => AlpineComponent<T>) => fn
 
 interface Waveform {
   ready: boolean
   loading: number
-  sessionId: string
-  sessionName: string
-  tunes: TunePerformance[],
+  session: Session
   currentTune: string | undefined
 }
 
@@ -26,10 +25,7 @@ interface App {
 
   init: () => void
   loadSession: (sessionId: string, sessionName: string) => void
-  createTune: (sessionId: string, startTime: number, endTime: number) => void
-  updateTune: (sessionId: string, tuneId: string, startTime: number, endTime: number) => void
   updateTuneName: (sessionId: string, tuneId: string, name: string) => void
-  updateCurrentTune: (sessionId: string, tuneId: string | undefined) => void
   deleteTunePerformance: (sessionId: string, tuneId: string) => void
   playFromStart: () => void
   skipToStart: () => void
@@ -37,6 +33,9 @@ interface App {
   skipBackward: () => void
   skipForward: () => void
   playPause: () => void
+  onTuneCreating: (detail: {sessionId: string, startTime: number, endTime: number}) => void
+  onTuneUpdating: (detail: {sessionId: string, tuneId: string, startTime: number, endTime: number}) => void
+  onCurrentTuneChanged: (detail: {sessionId: string, tuneId: string | undefined}) => void
 }
 
 const App = defineComponent<unknown, App>(() => ({ 
@@ -46,7 +45,7 @@ const App = defineComponent<unknown, App>(() => ({
   playing: false,
   editing: false,
 
-  init() {
+  init() { log(arguments)()
     window.fetch(new Request("/sessions.json"))
       .then((response) => {
         if(!response.ok) { 
@@ -66,9 +65,9 @@ const App = defineComponent<unknown, App>(() => ({
       })
   },
 
-  loadSession(sessionId: string, tuneId: string | undefined = undefined) {
+  loadSession(sessionId: string, tuneId: string | undefined = undefined) { log(arguments)()
     if(this.pageState.page == 'session') {
-      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
     }
 
     var session = this.sessions.find(s => s.id == sessionId)
@@ -79,11 +78,9 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'session',
       data: {
-        sessionId,
-        sessionName: session.name,
+        session: session,
         ready: false,
         loading: 0,
-        tunes: session.tunes,
         currentTune: undefined
       }
     }
@@ -92,9 +89,9 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:waveform-loading', { session: session, tuneId: tuneId })
   },
 
-  loadTune(tuneId: string) {
+  loadTune(tuneId: string) { log(arguments)()
     if(this.pageState.page == 'session') {
-      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
     }
 
     var tune = this.tunes.find(t => t.id == tuneId)
@@ -109,9 +106,9 @@ const App = defineComponent<unknown, App>(() => ({
     this.editing = false
   },
 
-  loadSessions() {
+  loadSessions() { log(arguments)()
     if(this.pageState.page == 'session') {
-      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
     }
 
     this.pageState = {
@@ -120,9 +117,9 @@ const App = defineComponent<unknown, App>(() => ({
     this.editing = false
   },
 
-  loadTunes() {
+  loadTunes() { log(arguments)()
     if(this.pageState.page == 'session') {
-      this.$dispatch('sx:waveform-unloading', this.pageState.data.sessionId)
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
     }
 
     this.pageState = {
@@ -131,7 +128,96 @@ const App = defineComponent<unknown, App>(() => ({
     this.editing = false
   },
 
-  createTune(sessionId: string, startTime: number, endTime: number) {
+  updateTuneName(sessionId: string, tuneId: string, name: string) { log(sessionId, tuneId, name)
+    var session = this.sessions.find(s => s.id == sessionId)
+    var tune = this.tunes.find(t => t.id == tuneId)
+    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
+    var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
+
+    if(!tune || !session || !sessionPerf || !tunePerf) {
+      return
+    }
+
+    tune.name = name
+    sessionPerf.tuneName = name
+    tunePerf.tuneName = name
+
+    this.$dispatch('sx:tune-name-updated', sessionPerf)
+  },
+
+  playFromStart() { log(arguments)()
+    this.$dispatch('sx:play-from-start')
+  },
+
+  skipToStart() { log(arguments)()
+    this.$dispatch('sx:skip-to-start')
+  },
+
+  skipToEnd() { log(arguments)()
+    this.$dispatch('sx:skip-to-end')
+  },
+
+  skipBackward() { log(arguments)()
+    this.$dispatch('sx:skip-backward')
+  },
+
+  skipForward() { log(arguments)()
+    this.$dispatch('sx:skip-forward')
+  },
+
+  playPause() { log(arguments)()
+    this.$dispatch('sx:play-pause')
+  },
+
+  zoomIn() { log(arguments)()
+    log('hi')
+
+    this.$dispatch('sx:zoom-in')
+  },
+
+  zoomOut() { log(arguments)()
+    log('hi')
+    this.$dispatch('sx:zoom-out')
+  },
+
+  toggleEditing() { log(arguments)()
+    this.editing = !this.editing
+    if(this.editing) {
+        this.$dispatch('sx:editing-start')
+    } else {
+        this.$dispatch('sx:editing-stop')
+    }
+  },
+
+  deleteTunePerformance(sessionId: string, tuneId: string) { log(arguments)()
+
+    if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
+      return
+    }
+
+    var session = this.sessions.find(s => s.id == sessionId)
+    var tune = this.tunes.find(t => t.id == tuneId)
+    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
+    var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
+
+    if(!tune || !session || !sessionPerf || !tunePerf) {
+      return
+    }
+
+    this.pageState.data.currentTune = undefined
+    session.tunes = session.tunes.filter(t => t.tuneId != tuneId)
+    tune.performances = tune.performances.filter(t => t.tuneId != tuneId)
+
+    log(this.pageState.data.session.tunes)
+
+    this.$dispatch('sx:tune-performance-deleted', sessionPerf)
+  },
+
+  onTuneCreating(detail: {sessionId: string, startTime: number, endTime: number}) {  log(arguments)()
+    var sessionId = detail.sessionId
+    var startTime = detail.startTime
+    var endTime = detail.endTime
+
     var session = this.sessions.find(s => s.id == sessionId)
 
     if(!session) {
@@ -161,9 +247,15 @@ const App = defineComponent<unknown, App>(() => ({
     session.tunes.push(perf)
 
     this.$dispatch('sx:tune-created', perf)
+
   },
 
-  updateTune(sessionId: string, tuneId: string, startTime: number, endTime: number) {
+  onTuneUpdating(detail: {sessionId: string, tuneId: string, startTime: number, endTime: number}) { log(arguments)()
+    var sessionId = detail.sessionId
+    var tuneId = detail.tuneId
+    var startTime = detail.startTime
+    var endTime = detail.endTime
+
     var session = this.sessions.find(s => s.id == sessionId)
     var tune = this.tunes.find(t => t.id == tuneId)
     var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
@@ -181,94 +273,16 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:tune-updated', sessionPerf)
   },
 
-  updateTuneName(sessionId: string, tuneId: string, name: string) {
-    var session = this.sessions.find(s => s.id == sessionId)
-    var tune = this.tunes.find(t => t.id == tuneId)
-    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
-    var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
+  onCurrentTuneChanged(detail: {sessionId: string, tuneId: string | undefined}) { log(arguments)()
+    var sessionId = detail.sessionId
+    var tuneId = detail.tuneId
 
-    if(!tune || !session || !sessionPerf || !tunePerf) {
-      return
-    }
-
-    tune.name = name
-    sessionPerf.tuneName = name
-    tunePerf.tuneName = name
-
-    this.$dispatch('sx:tune-name-updated', sessionPerf)
-  },
-
-  updateCurrentTune(sessionId: string, tuneId: string | undefined) {
-    if(this.pageState.page != 'session' || this.pageState.data.sessionId != sessionId) {
+    if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
       return
     }
 
     this.pageState.data.currentTune = tuneId
-  },
-
-  deleteTunePerformance(sessionId: string, tuneId: string) {
-    if(this.pageState.page != 'session' || this.pageState.data.sessionId != sessionId) {
-      return
-    }
-
-    var session = this.sessions.find(s => s.id == sessionId)
-    var tune = this.tunes.find(t => t.id == tuneId)
-    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
-    var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
-
-    if(!tune || !session || !sessionPerf || !tunePerf) {
-      return
-    }
-
-    this.pageState.data.tunes = this.pageState.data.tunes.filter(t => t.tuneId != tuneId)
-    this.pageState.data.currentTune = undefined
-    session.tunes = session.tunes.filter(t => t.tuneId != tuneId)
-    tune.performances = tune.performances.filter(t => t.tuneId != tuneId)
-
-    this.$dispatch('sx:tune-performance-deleted', sessionPerf)
-  },
-
-  playFromStart() {
-    this.$dispatch('sx:play-from-start')
-  },
-
-  skipToStart() {
-    this.$dispatch('sx:skip-to-start')
-  },
-
-  skipToEnd() {
-    this.$dispatch('sx:skip-to-end')
-  },
-
-  skipBackward() {
-    this.$dispatch('sx:skip-backward')
-  },
-
-  skipForward() {
-    this.$dispatch('sx:skip-forward')
-  },
-
-  playPause() {
-    this.$dispatch('sx:play-pause')
-  },
-
-  zoomIn() {
-    this.$dispatch('sx:zoom-in')
-  },
-
-  zoomOut() {
-    this.$dispatch('sx:zoom-out')
-  },
-
-  toggleEditing() {
-    this.editing = !this.editing
-    if(this.editing) {
-        this.$dispatch('sx:editing-start')
-    } else {
-        this.$dispatch('sx:editing-stop')
-    }
   }
-
 }))
 
 export default App

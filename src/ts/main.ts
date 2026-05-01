@@ -5,7 +5,7 @@ import iconsRaw from 'bootstrap-icons/bootstrap-icons.svg?raw'
 import App from './app'
 import type { WaveformData } from './waveform-manager.ts'
 import { WaveformManager } from './waveform-manager.ts'
-import { listen } from './helpers.ts'
+import { listen } from './common.ts'
 
 var allSvg = document.getElementById('all')
 if(allSvg) {
@@ -34,7 +34,7 @@ listen('sx:waveform-loading', (data: WaveformData) =>
   }))
 
 listen('sx:waveform-unloading', (sessionId: string) => {
-  if(window.waveform && window.waveform.session.id == sessionId) {
+  if(window.waveform && window.waveform.sessionId == sessionId) {
     window.waveform.unload()
   }
 })

@@ -1,7 +1,8 @@
 import type { TunePerformance } from './data.ts'
+import { log } from './common.ts'
 
 export class TuneRegionCollection {
-  tunes: TuneRegion[] = []
+  private tunes: TuneRegion[] = []
 
   constructor(tunes: TunePerformance[]) {
     this.tunes = tunes
@@ -15,7 +16,7 @@ export class TuneRegionCollection {
     return this.tunes[Symbol.iterator]()
   }
 
-  reversed() {
+  reversed() { log(arguments)()
     var x = this.tunes
     return {
       *[Symbol.iterator]() {
@@ -26,39 +27,32 @@ export class TuneRegionCollection {
     }
   }
 
-  find(id: string) : TuneRegion | undefined {
+  find(id: string) : TuneRegion | undefined { log(arguments)()
     return this.tunes.find(t => t.tuneId == id)
   }
 
-  delete(id: string) {
+  delete(id: string) { log(arguments)()
     var tune = this.tunes.find(t => t.tuneId == id)
     if(!tune) {
       return
     }
 
-    if(tune.prevNeighbour) {
-      tune.prevNeighbour.tune.nextNeighbour = undefined
-    }
-
-    if(tune.nextNeighbour) {
-      tune.nextNeighbour.tune.prevNeighbour = undefined
-    }
-
     this.tunes = this.tunes.filter(t => t.tuneId != id)
+    this.lockNeighbours()
   }
 
-  getCurrent() : TuneRegion | undefined {
+  getCurrent() : TuneRegion | undefined { log(arguments)()
     return this.tunes.find(t => t.current)
   }
 
-  in(id: string) {
+  in(id: string) { log(arguments)()
     for(var i = 0; i < this.tunes.length; i++) {
       let tune = this.tunes[i]
       tune.current = tune.tuneId === id
     }
   }
 
-  out(id: string) {
+  out(id: string) { log(arguments)()
     for(var i = 0; i < this.tunes.length; i++) {
       let tune = this.tunes[i]
       if(tune.tuneId === id) {
@@ -67,7 +61,7 @@ export class TuneRegionCollection {
     }
   }
 
-  tryCreate(startTime: number, endTime: number) : {startTime: number, endTime: number} | undefined {
+  tryCreate(startTime: number, endTime: number) : {startTime: number, endTime: number} | undefined { log(arguments)()
     for(var tune of this.tunes) {
       if(startTime < tune.startTime && tune.endTime < endTime) {
         return;
@@ -99,7 +93,7 @@ export class TuneRegionCollection {
     return { startTime, endTime }
   }
 
-  add(perf: TunePerformance) : TuneRegion {
+  add(perf: TunePerformance) : TuneRegion { log(arguments)()
     var newTune =  new TuneRegion(perf.tuneId, perf.tuneName, perf.startTime, perf.endTime)
 
     if(!this.tunes.length) {
@@ -128,7 +122,9 @@ export class TuneRegionCollection {
     return newTune
   }
 
-  lockNeighbours() {
+  private lockNeighbours() { log(arguments)()
+    this.tunes[0].prevNeighbour = undefined
+
     for(var i = 1; i < this.tunes.length; i++) {
       let prevTune = this.tunes[i - 1]
       let tune = this.tunes[i]
@@ -136,6 +132,7 @@ export class TuneRegionCollection {
       var locked = prevTune.endTime == tune.startTime
       prevTune.nextNeighbour = new TuneRegionNeighbour(tune, locked)
       tune.prevNeighbour = new TuneRegionNeighbour(prevTune, locked)
+      tune.nextNeighbour = undefined
     }    
   }
 }
@@ -156,11 +153,11 @@ export class TuneRegion {
     this.endTime = endTime
   }
 
-  updateName(name: string) {
+  updateName(name: string) { log(arguments)()
     this.tuneName = name
   }
 
-  update(startTime: number, endTime: number) {
+  update(startTime: number, endTime: number) { log(arguments)()
     if(this.prevNeighbour) {
       if(this.prevNeighbour.locked) {
         this.prevNeighbour.tune.endTime = startTime
@@ -185,7 +182,7 @@ export class TuneRegion {
     this.endTime = endTime
   }
 
-  lockNeighbours() {
+  lockNeighbours() { log(arguments)()
     if(this.prevNeighbour && this.startTime == this.prevNeighbour.tune.endTime) {
       this.prevNeighbour.locked = true;
       this.prevNeighbour.tune.nextNeighbour = new TuneRegionNeighbour(this, true);

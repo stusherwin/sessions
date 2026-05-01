@@ -65,17 +65,17 @@
     <template x-if="pageState.page == 'session'">
       <div @sx:waveform-ready.window="pageState.data.ready = true"
            @sx:waveform-load-progress-updated.window="pageState.data.loading = $event.detail.loading"
-           @sx:tune-creating.window="createTune($event.detail.sessionId, $event.detail.startTime, $event.detail.endTime)"
-           @sx:tune-updating.window="updateTune($event.detail.sessionId, $event.detail.tuneId, $event.detail.startTime, $event.detail.endTime)"
-           @sx:current-tune-changed.window="updateCurrentTune($event.detail.sessionId, $event.detail.tuneId)"
+           @sx:tune-creating.window="onTuneCreating($event.detail)"
+           @sx:tune-updating.window="onTuneUpdating($event.detail)"
+           @sx:current-tune-changed.window="onCurrentTuneChanged($event.detail)"
            @sx:playing.window="playing = true"
            @sx:stopped.window="playing = false">
-        <h1 x-text="pageState.data.sessionName"></h1>
+        <h1 x-text="pageState.data.session.name"></h1>
         <div x-show="!pageState.data.ready">
           Loading: <span x-text="pageState.data.loading"></span>%
         </div>
         <div x-show="pageState.data.ready">
-          <div :data-session-id="pageState.data.sessionId" class="waveform"></div>
+          <div :data-session-id="pageState.data.session.id" class="waveform"></div>
           <div>
             <button @click="skipToStart()">
               <svg class="bi" width="16" height="16" fill="currentColor">
@@ -120,14 +120,14 @@
             </button>
           </div>
 
-          <template x-for="tune in pageState.data.tunes">
-            <div x-data x-init="$watch('tune.tuneName', name => updateTuneName(pageState.data.sessionId, tune.tuneId, name))">
+          <template x-for="tune in pageState.data.session.tunes">
+            <div x-data x-init="$watch('tune.tuneName', name => updateTuneName(pageState.data.session.id, tune.tuneId, name))">
               <div x-show="pageState.data.currentTune == tune.tuneId">
                 <h2>
                   <span x-show="!editing" x-text="tune.tuneName"></span>
                   <input x-show="editing" type="text" x-model="tune.tuneName" />
                 </h2>
-                <button x-show="editing" @click="deleteTunePerformance(pageState.data.sessionId, tune.tuneId)">
+                <button x-show="editing" @click="deleteTunePerformance(pageState.data.session.id, tune.tuneId)">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#trash-fill" />
                   </svg>

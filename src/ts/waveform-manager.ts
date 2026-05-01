@@ -2,7 +2,8 @@ import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import type { Session, TunePerformance } from './data.ts'
 import { TuneRegionManager } from './tune-region-manager.ts'
-import { dispatch, listen } from './helpers.ts'
+import { dispatch, listen } from './common.ts'
+import { log } from './common.ts'
 
 export interface WaveformData {
   session: Session
@@ -10,114 +11,65 @@ export interface WaveformData {
 }
 
 export class WaveformManager {
-  session: Session
-  initialTuneId: string | undefined
-  tuneRegions: TuneRegionManager
-  ws: WaveSurfer
-  subscriptions: (() => void)[] = []
-  zoomTimeout :  number | undefined = undefined
-  zooming = false
-  editing = false
-  scrollPosition: number | undefined = undefined
-  container: HTMLElement
+  sessionId: string
+  private initialTuneId: string | undefined
+  private tuneRegions: TuneRegionManager
+  private ws: WaveSurfer
+  private subscriptions: (() => void)[] = []
+  private zoomTimeout :  number | undefined = undefined
+  private zooming = false
+  private editing = false
+  private scrollPosition: number | undefined = undefined
+  private container: HTMLElement
 
   constructor(data: WaveformData) {
-    this.session = data.session
+    this.sessionId = data.session.id
     this.initialTuneId = data.tuneId
 
-    const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
-
     var regions = RegionsPlugin.create()
-    this.tuneRegions = new TuneRegionManager(this.session.tunes, regions)
-
-    subscribe(this.tuneRegions.on('tune-region-creating', (startTime, endTime) => 
-      dispatch('sx:tune-creating', { sessionId: this.session.id, startTime, endTime })))
-
-    subscribe(this.tuneRegions.on('tune-region-created', (startTime, _) => 
-      this.ws.setTime(startTime)))
-
-    subscribe(this.tuneRegions.on('tune-region-updating', (tuneId, startTime, endTime) => 
-      dispatch('sx:tune-updating', { sessionId: this.session.id, tuneId, startTime, endTime })))
-
-    subscribe(this.tuneRegions.on('tune-region-updated', (tuneId, startTime, endTime) => {}))
-    subscribe(this.tuneRegions.on('current-tune-region-changed', (tuneId) => 
-      dispatch('sx:current-tune-changed', { sessionId: this.session.id, tuneId })))
-
-    this.container = document.querySelector('.waveform[data-session-id="' + this.session.id + '"]') as HTMLElement
+    this.tuneRegions = new TuneRegionManager(data.session.tunes, regions)
+    this.container = document.querySelector('.waveform[data-session-id="' + data.session.id + '"]') as HTMLElement
     this.ws = WaveSurfer.create({
       container: this.container,
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red',
-      url: '/' + this.session.filename,
+      url: '/' + data.session.filename,
       plugins: [regions],
-      peaks: this.session.peaks,
-      duration: this.session.duration
+      peaks: data.session.peaks,
+      duration: data.session.duration
     })
 
-    subscribe(this.ws.on('loading', percent => 
-      dispatch('sx:waveform-load-progress-updated', { id: this.session.id, loading: percent })))
+    const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
 
-    subscribe(this.ws.once('decode', () => {
-      this.tuneRegions.init()
-
-      dispatch('sx:waveform-ready', { id: this.session.id })
-      if(this.initialTuneId) {
-        var region = this.tuneRegions.findRegion(this.initialTuneId)
-        if(region) {
-          this.ws.setTime(region.start)
-        }
-      }
-    }))
-    
-    subscribe(listen('sx:tune-created', (tune: TunePerformance) => {
-      if(tune.sessionId != this.session.id) {
-        return
-      }
-
-      this.tuneRegions.create(tune)
-    }))
-    
-    subscribe(listen('sx:tune-updated', (tune: TunePerformance) => {
-      if(tune.sessionId != this.session.id) {
-        return
-      }
-
-      this.tuneRegions.update(tune)
-    }))
-    
-    subscribe(listen('sx:tune-name-updated', (tune: TunePerformance) => {
-      if(tune.sessionId != this.session.id) {
-        return
-      }
-
-      this.tuneRegions.updateName(tune)
-    }))
-    
-    subscribe(listen('sx:tune-performance-deleted', (tune: TunePerformance) => {
-      if(tune.sessionId != this.session.id) {
-        return
-      }
-
-      this.tuneRegions.delete(tune)
-    }))
-
-    subscribe(this.ws.on('play', () => dispatch('sx:playing', {})))
-    subscribe(this.ws.on('pause', () => dispatch('sx:stopped', {})))
-    subscribe(this.ws.on('finish', () => dispatch('sx:stopped', {})))
-    subscribe(listen('sx:play-pause', () => this.playPause()))
-    subscribe(listen('sx:play-from-start', () => this.playFromStart()))
-    subscribe(listen('sx:skip-to-start', () => this.skipToStart()))
-    subscribe(listen('sx:skip-to-end', () => this.skipToEnd()))
-    subscribe(listen('sx:skip-backward', () => this.skipBackward()))
-    subscribe(listen('sx:skip-forward', () => this.skipForward()))
-    subscribe(listen('sx:zoom-in', () => this.zoomIn()))
-    subscribe(listen('sx:zoom-out', () => this.zoomOut()))
-    subscribe(listen('sx:editing-start', () => this.startEditing()))
-    subscribe(listen('sx:editing-stop', () => this.stopEditing()))
+    subscribe(this.tuneRegions.on('tune-region-creating', this.onTrTuneRegionCreating.bind(this)))
+    subscribe(this.tuneRegions.on('tune-region-created', this.onTrTuneRegionCreated.bind(this)))
+    subscribe(this.tuneRegions.on('tune-region-updating', this.onTrTuneRegionUpdating.bind(this)))
+    subscribe(this.tuneRegions.on('tune-region-updated', this.onTrTuneRegionUpdated.bind(this)))
+    subscribe(this.tuneRegions.on('current-tune-region-changed', this.onTrCurrentTuneRegionChanged.bind(this)))
+    subscribe(this.ws.on('loading', this.onWsLoading.bind(this)))
+    subscribe(this.ws.once('decode', this.onWsDecode.bind(this)))
+    subscribe(this.ws.on('play', this.onWsPlay.bind(this)))
+    subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
+    subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
+    subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
+    subscribe(listen('sx:tune-created', this.onAppTuneCreated.bind(this)))
+    subscribe(listen('sx:tune-updated', this.onAppTuneUpdated.bind(this)))
+    subscribe(listen('sx:tune-name-updated', this.onAppTuneNameUpdated.bind(this)))
+    subscribe(listen('sx:tune-performance-deleted', this.onAppTunePerformanceDeleted.bind(this)))
+    subscribe(listen('sx:play-pause', this.onAppPlayPause.bind(this)))
+    subscribe(listen('sx:play-from-start', this.onAppPlayFromStart.bind(this)))
+    subscribe(listen('sx:skip-to-start', this.onAppSkipToStart.bind(this)))
+    subscribe(listen('sx:skip-to-end', this.onAppSkipToEnd.bind(this)))
+    subscribe(listen('sx:skip-backward', this.onAppSkipBackward.bind(this)))
+    subscribe(listen('sx:skip-forward', this.onAppSkipForward.bind(this)))
+    subscribe(listen('sx:zoom-in', this.onAppZoomIn.bind(this)))
+    subscribe(listen('sx:zoom-out', this.onAppZoomOut.bind(this)))
+    subscribe(listen('sx:editing-start', this.onAppEditingStart.bind(this)))
+    subscribe(listen('sx:editing-stop', this.onAppEditingStop.bind(this)))
   }
 
-  unload() {
+  unload() { log(arguments)()
     for(var unsubscribe of this.subscriptions) {
       unsubscribe();
     }
@@ -126,42 +78,123 @@ export class WaveformManager {
     this.ws.destroy();
   }
 
-  playPause() {
+  private onWsLoading(percent: number) { log(arguments)()
+    dispatch('sx:waveform-load-progress-updated', { id: this.sessionId, loading: percent })
+  }
+
+  private onWsDecode() { log(arguments)()
+    this.tuneRegions.init()
+
+    dispatch('sx:waveform-ready', { id: this.sessionId })
+    if(this.initialTuneId) {
+      var region = this.tuneRegions.findRegion(this.initialTuneId)
+      if(region) {
+        this.ws.setTime(region.start)
+      }
+    }
+  }
+  
+  private onAppTuneCreated(tune: TunePerformance) { log(arguments)()
+    if(tune.sessionId != this.sessionId) {
+      return
+    }
+
+    this.tuneRegions.create(tune)
+  }
+  
+  private onAppTuneUpdated(tune: TunePerformance) { log(arguments)()
+    if(tune.sessionId != this.sessionId) {
+      return
+    }
+
+    this.tuneRegions.update(tune)
+  }
+  
+  private onAppTuneNameUpdated(tune: TunePerformance) { log(arguments)()
+    if(tune.sessionId != this.sessionId) {
+      return
+    }
+
+    this.tuneRegions.updateName(tune)
+  }
+  
+  private onAppTunePerformanceDeleted(tune: TunePerformance) { log(arguments)()
+    if(tune.sessionId != this.sessionId) {
+      return
+    }
+
+    this.tuneRegions.delete(tune)
+  }
+
+  private onTrTuneRegionCreating(startTime: number, endTime: number) { log(arguments)()
+    dispatch('sx:tune-creating', { sessionId: this.sessionId, startTime, endTime })
+  }
+
+  private onTrTuneRegionCreated(startTime: number, endTime: number) { log(arguments)()
+    this.ws.setTime(startTime)
+  }
+
+  private onTrTuneRegionUpdating(tuneId: string, startTime: number, endTime: number) { log(arguments)()
+    dispatch('sx:tune-updating', { sessionId: this.sessionId, tuneId, startTime, endTime })
+  }
+
+  private onTrTuneRegionUpdated(tuneId: string, startTime: number, endTime: number) {  log(arguments)() }
+  
+  private onTrCurrentTuneRegionChanged(tuneId: string | undefined) { log(arguments)()
+    dispatch('sx:current-tune-changed', { sessionId: this.sessionId, tuneId })
+  }
+
+  private onWsPlay() { log(arguments)()
+    dispatch('sx:playing', {}) 
+  }
+  
+  private onWsPause() { log(arguments)()
+    dispatch('sx:stopped', {}) 
+  }
+  
+  private onWsFinish() { log(arguments)()
+    dispatch('sx:stopped', {}) 
+  }
+  
+  private onWsScroll() { log(arguments)()
+    if(!this.zooming && this.editing && this.scrollPosition) {
+      this.ws.setScroll(this.scrollPosition)
+      return;
+    }
+  }
+
+  private onAppPlayPause() { log(arguments)()
     this.ws.playPause();
   }
 
-  playFromStart() {
+  private onAppPlayFromStart() { log(arguments)()
     this.ws.setTime(0);
     this.ws.play();
   }
 
-  skipToStart() {
+  private onAppSkipToStart() { log(arguments)()
     this.ws.setTime(0);
   }
 
-  skipToEnd() {
+  private onAppSkipToEnd() { log(arguments)()
     this.ws.seekTo(1);
   }
 
-  skipBackward() {
+  private onAppSkipBackward() { log(arguments)()
     let tune = this.tuneRegions.findPrevious(this.ws.getCurrentTime());
     if(tune) {
       this.ws.setTime(tune.startTime + 0.00000001);
     }
   }
 
-  skipForward() {
+  private onAppSkipForward() { log(arguments)()
     let tune = this.tuneRegions.findNext(this.ws.getCurrentTime());
     if(tune) {
       this.ws.setTime(tune.startTime + 0.00000001);
     }
   }
 
-  zoomIn() {
-    if(!this.ws) {
-        return
-    }
-
+  private onAppZoomIn() { log(arguments)()
     var currentScroll = this.ws.getScroll()
     var total = this.ws.getWrapper().scrollWidth
     var mid = currentScroll + this.ws.getWidth() / 2
@@ -184,11 +217,7 @@ export class WaveformManager {
     this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
   }
 
-  zoomOut() {
-    if(!this.ws) {
-        return
-    }
-
+  private onAppZoomOut() { log(arguments)()
     var currentScroll = this.ws.getScroll()
     var total = this.ws.getWrapper().scrollWidth
     var mid = currentScroll + this.ws.getWidth() / 2
@@ -211,7 +240,7 @@ export class WaveformManager {
     this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
   }
 
-  startEditing() {
+  private onAppEditingStart() { log(arguments)()
     this.editing = true
     this.scrollPosition = this.ws.getScroll()
 
@@ -231,7 +260,7 @@ export class WaveformManager {
     this.tuneRegions.startEditing()
   }
 
-  stopEditing() {
+  private onAppEditingStop() { log(arguments)()
     this.tuneRegions.stopEditing()
 
     this.ws.setOptions({
