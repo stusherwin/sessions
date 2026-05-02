@@ -29,6 +29,6 @@ export function log(...args: any[]) {
   if(args.length == 1 && args[0].toString() == "[object Arguments]") {
     return Function.prototype.bind.apply(console.log, [console, file + ' | ' + fn + '(', ...args[0], ')'])    
   } else {
-    return Function.prototype.bind.call(console.log, [console, file + ' | ' + fn + ':', ...args]) 
+    return Function.prototype.bind.apply(console.log, [console, file + ' | ' + fn + ':', ...args]) 
   }
 };

@@ -6,7 +6,7 @@ export class TuneRegionCollection {
 
   constructor(tunes: TunePerformance[]) {
     this.tunes = tunes
-      .map(t => new TuneRegion(t.tuneId, t.tuneName, t.startTime, t.endTime))
+      .map(t => new TuneRegion(t.id, t.tuneId, t.tuneName, t.startTime, t.endTime))
       .sort((a, b) => a.startTime - b.startTime)
     
     this.lockNeighbours()
@@ -28,16 +28,16 @@ export class TuneRegionCollection {
   }
 
   find(id: string) : TuneRegion | undefined { log(arguments)()
-    return this.tunes.find(t => t.tuneId == id)
+    return this.tunes.find(t => t.id == id)
   }
 
   delete(id: string) { log(arguments)()
-    var tune = this.tunes.find(t => t.tuneId == id)
+    var tune = this.tunes.find(t => t.id == id)
     if(!tune) {
       return
     }
 
-    this.tunes = this.tunes.filter(t => t.tuneId != id)
+    this.tunes = this.tunes.filter(t => t.id != id)
     this.lockNeighbours()
   }
 
@@ -48,14 +48,14 @@ export class TuneRegionCollection {
   in(id: string) { log(arguments)()
     for(var i = 0; i < this.tunes.length; i++) {
       let tune = this.tunes[i]
-      tune.current = tune.tuneId === id
+      tune.current = tune.id === id
     }
   }
 
   out(id: string) { log(arguments)()
     for(var i = 0; i < this.tunes.length; i++) {
       let tune = this.tunes[i]
-      if(tune.tuneId === id) {
+      if(tune.id === id) {
         tune.current = false
       }
     }
@@ -94,7 +94,7 @@ export class TuneRegionCollection {
   }
 
   add(perf: TunePerformance) : TuneRegion { log(arguments)()
-    var newTune =  new TuneRegion(perf.tuneId, perf.tuneName, perf.startTime, perf.endTime)
+    var newTune =  new TuneRegion(perf.id, perf.tuneId, perf.tuneName, perf.startTime, perf.endTime)
 
     if(!this.tunes.length) {
       this.tunes = [newTune]
@@ -138,6 +138,7 @@ export class TuneRegionCollection {
 }
 
 export class TuneRegion {
+  id: string
   tuneId: string
   tuneName: string
   startTime: number
@@ -146,14 +147,19 @@ export class TuneRegion {
   prevNeighbour: TuneRegionNeighbour | undefined = undefined
   nextNeighbour: TuneRegionNeighbour | undefined = undefined
 
-  constructor(tuneId: string, tuneName: string, startTime: number, endTime: number) {
+  constructor(id: string, tuneId: string, tuneName: string, startTime: number, endTime: number) {
+    this.id = id
     this.tuneId = tuneId
     this.tuneName = tuneName
     this.startTime = startTime
     this.endTime = endTime
   }
 
-  updateName(name: string) { log(arguments)()
+  updateTuneId(tuneId: string) { log(arguments)()
+    this.tuneId = tuneId
+  }
+
+  updateTuneName(name: string) { log(arguments)()
     this.tuneName = name
   }
 

@@ -22,6 +22,8 @@ interface App {
   pageState: { page: 'sessions' } | { page: 'tunes' } | { page: 'session', data: Waveform } | { page: 'tune', data: Tune }
   playing: boolean
   editing: boolean
+  nextTuneId: number
+  nextPerfId: number
 
   init: () => void
   loadSession: (sessionId: string, sessionName: string) => void
@@ -34,8 +36,8 @@ interface App {
   skipForward: () => void
   playPause: () => void
   onTuneCreating: (detail: {sessionId: string, startTime: number, endTime: number}) => void
-  onTuneUpdating: (detail: {sessionId: string, tuneId: string, startTime: number, endTime: number}) => void
-  onCurrentTuneChanged: (detail: {sessionId: string, tuneId: string | undefined}) => void
+  onTuneUpdating: (detail: {sessionId: string, id: string, startTime: number, endTime: number}) => void
+  onCurrentTuneChanged: (detail: {sessionId: string, id: string | undefined}) => void
 }
 
 const App = defineComponent<unknown, App>(() => ({ 
@@ -44,6 +46,8 @@ const App = defineComponent<unknown, App>(() => ({
   pageState: { page: 'sessions' },
   playing: false,
   editing: false,
+  nextTuneId: 0,
+  nextPerfId: 0,
 
   init() { log(arguments)()
     window.fetch(new Request("/sessions.json"))
@@ -57,6 +61,31 @@ const App = defineComponent<unknown, App>(() => ({
       .then((data : AppData) => {
         this.sessions = data.sessions
         this.tunes = data.tunes
+
+        var maxTuneId = 0
+        var maxPerfId = 0
+        for(var tune of this.tunes) {
+          var id = parseInt(tune.id.split('-')[1])
+          if(id > maxTuneId) {
+            maxTuneId = id
+          }
+          for(var perf of tune.performances) {
+            var id = parseInt(perf.id.split('-')[1])
+            if(id > maxPerfId) {
+              maxPerfId = id
+            }
+          }
+        }
+        for(var session of this.sessions) {
+          for(var perf of session.tunes) {
+            var id = parseInt(perf.id.split('-')[1])
+            if(id > maxPerfId) {
+              maxPerfId = id
+            }
+          }
+        }
+        this.nextTuneId = maxTuneId + 1
+        this.nextPerfId = maxPerfId + 1
       })
       .catch(err => {
         console.error(err)
@@ -65,7 +94,7 @@ const App = defineComponent<unknown, App>(() => ({
       })
   },
 
-  loadSession(sessionId: string, tuneId: string | undefined = undefined) { log(arguments)()
+  loadSession(sessionId: string, performanceId: string | undefined = undefined) { log(arguments)()
     if(this.pageState.page == 'session') {
       this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
     }
@@ -86,7 +115,7 @@ const App = defineComponent<unknown, App>(() => ({
     }
     this.editing = false
 
-    this.$dispatch('sx:waveform-loading', { session: session, tuneId: tuneId })
+    this.$dispatch('sx:waveform-loading', { session: session, performanceId })
   },
 
   loadTune(tuneId: string) { log(arguments)()
@@ -128,10 +157,10 @@ const App = defineComponent<unknown, App>(() => ({
     this.editing = false
   },
 
-  updateTuneName(sessionId: string, tuneId: string, name: string) { log(sessionId, tuneId, name)
+  updateTuneName(sessionId: string, id: string, name: string) { log(arguments)()
     var session = this.sessions.find(s => s.id == sessionId)
-    var tune = this.tunes.find(t => t.id == tuneId)
-    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
+    var sessionPerf = session?.tunes.find(t => t.id == id)
+    var tune = this.tunes.find(t => t.id == sessionPerf?.tuneId)
     var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
 
     if(!tune || !session || !sessionPerf || !tunePerf) {
@@ -189,28 +218,66 @@ const App = defineComponent<unknown, App>(() => ({
     }
   },
 
-  deleteTunePerformance(sessionId: string, tuneId: string) { log(arguments)()
-
+  deleteTunePerformance(sessionId: string, id: string) { log(arguments)()
     if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
       return
     }
 
     var session = this.sessions.find(s => s.id == sessionId)
-    var tune = this.tunes.find(t => t.id == tuneId)
-    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
+    var sessionPerf = session?.tunes.find(t => t.id == id)
+    var tune = this.tunes.find(t => t.id == sessionPerf?.tuneId)
     var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
 
     if(!tune || !session || !sessionPerf || !tunePerf) {
       return
     }
 
+    var tuneId = tune.id
     this.pageState.data.currentTune = undefined
-    session.tunes = session.tunes.filter(t => t.tuneId != tuneId)
-    tune.performances = tune.performances.filter(t => t.tuneId != tuneId)
+    session.tunes = session.tunes.filter(t => t.id != id)
+    tune.performances = tune.performances.filter(t => t.id != id)
+    if(tune.performances.length == 0) {
+      this.tunes = this.tunes.filter(t => t.id != tuneId)
+    }
 
     log(this.pageState.data.session.tunes)
 
     this.$dispatch('sx:tune-performance-deleted', sessionPerf)
+  },
+
+  changeTune(sessionId: string, id: string, newTuneId: string) { log(arguments)()
+    if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
+      return
+    }
+
+    var session = this.sessions.find(s => s.id == sessionId)
+    var sessionPerf = session?.tunes.find(t => t.id == id)
+    var tune = this.tunes.find(t => t.id == sessionPerf?.tuneId)
+    var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
+
+    var newTune = this.tunes.find(t => t.id == newTuneId)
+
+    if(!tune || !newTune || !session || !sessionPerf || !tunePerf) {
+      return
+    }
+
+    var tuneId = tune.id
+    sessionPerf.tuneId = newTuneId
+    sessionPerf.tuneName = newTune.name
+    tunePerf.tuneId = newTuneId
+    tunePerf.tuneName = newTune.name
+    tune.performances = tune.performances.filter(t => t.id != id)
+    if(tune.performances.length == 0) {
+      this.tunes = this.tunes.filter(t => t.id != tuneId)
+    }
+    newTune.performances.push(tunePerf)
+
+    this.$dispatch('sx:tune-performance-moved', { 
+      id,
+      sessionId,
+      newTuneId,
+      newTuneName: newTune.name
+    })
   },
 
   onTuneCreating(detail: {sessionId: string, startTime: number, endTime: number}) {  log(arguments)()
@@ -224,12 +291,15 @@ const App = defineComponent<unknown, App>(() => ({
       return
     }
 
-    var nextTuneId = this.tunes.length + 1
-    var tuneId = 'tune-' + nextTuneId
-    var tuneName = 'Tune ' + nextTuneId
+    var tuneId = 'tune-' + this.nextTuneId
+    var tuneName = 'Tune ' + this.nextTuneId
+    this.nextTuneId++
+    var perfId = 'perf-' + this.nextPerfId
+    this.nextPerfId++
 
     var perf : TunePerformance = {
-      tuneId,
+      id: perfId,
+      tuneId: tuneId,
       tuneName,
       sessionId,
       sessionName: session.name || '',
@@ -247,19 +317,18 @@ const App = defineComponent<unknown, App>(() => ({
     session.tunes.push(perf)
 
     this.$dispatch('sx:tune-created', perf)
-
   },
 
-  onTuneUpdating(detail: {sessionId: string, tuneId: string, startTime: number, endTime: number}) { log(arguments)()
+  onTuneUpdating(detail: {sessionId: string, id: string, startTime: number, endTime: number}) { log(arguments)()
     var sessionId = detail.sessionId
-    var tuneId = detail.tuneId
+    var id = detail.id
     var startTime = detail.startTime
     var endTime = detail.endTime
 
     var session = this.sessions.find(s => s.id == sessionId)
-    var tune = this.tunes.find(t => t.id == tuneId)
-    var sessionPerf = session?.tunes.find(t => t.tuneId == tuneId)
-    var tunePerf = tune?.performances.find(t => t.tuneId == tuneId)
+    var sessionPerf = session?.tunes.find(t => t.id == id)
+    var tune = this.tunes.find(t => t.id == sessionPerf?.tuneId)
+    var tunePerf = tune?.performances.find(t => t.sessionId == sessionId)
 
     if(!sessionPerf || !tunePerf) {
       return
@@ -273,15 +342,15 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:tune-updated', sessionPerf)
   },
 
-  onCurrentTuneChanged(detail: {sessionId: string, tuneId: string | undefined}) { log(arguments)()
+  onCurrentTuneChanged(detail: {sessionId: string, id: string | undefined}) { log(arguments)()
     var sessionId = detail.sessionId
-    var tuneId = detail.tuneId
+    var id = detail.id
 
     if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
       return
     }
 
-    this.pageState.data.currentTune = tuneId
+    this.pageState.data.currentTune = id
   }
 }))
 

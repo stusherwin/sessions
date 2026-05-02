@@ -1,7 +1,7 @@
 import EventEmitter from './event-emitter'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
-import type { TunePerformance } from './data.ts'
+import type { TunePerformance, TunePerformanceMove } from './data.ts'
 import { TuneRegionCollection } from './tune-region-collection.ts'
 import type { TuneRegion } from './tune-region-collection.ts'
 import { log } from './common.ts'
@@ -26,7 +26,7 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
   init() { log(arguments)()
     for(var tune of this.tunes) {
       var region = this.regions.addRegion({ 
-        id: tune.tuneId, 
+        id: tune.id, 
         content: tune.tuneName, 
         start: tune.startTime, 
         end: tune.endTime, 
@@ -60,10 +60,6 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
   }
 
   findRegion(regionId: string) : Region | undefined { log(arguments)()
-    if(!this.regions) {
-        return
-    }
-
     return this.regions.getRegions().find((r, _) => r.id == regionId)
   }
 
@@ -97,7 +93,7 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
 
     var tune = this.tunes.add(perf)
 
-    region.setOptions({ id : perf.tuneId, content: perf.tuneName, start: perf.startTime, end: perf.endTime })
+    region.setOptions({ id : perf.id, content: perf.tuneName, start: perf.startTime, end: perf.endTime })
     var el = region.element
     if(el) {
       el.part.add('sx-tune')
@@ -118,23 +114,37 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
   }
 
   updateName(perf: TunePerformance) { log(arguments)()
-    let region = this.findRegion(perf.tuneId)
-    let tune = this.tunes.find(perf.tuneId);
+    let region = this.findRegion(perf.id)
+    let tune = this.tunes.find(perf.id)
 
     if(!region || !tune) {
       return
     }
 
-    region.setContent(perf.tuneName || '')
-    tune.updateName(perf.tuneName)
+    region.setOptions({ id : perf.id, content: perf.tuneName })
+    var el = region.element
+    el?.part.add('sx-tune')
+    if(this.editing) {
+      el?.part.add('sx-editable')
+    }
+    if(tune.current) {
+      el?.part.add('sx-current')
+    }
+    if(tune.prevNeighbour && tune.prevNeighbour.locked) {
+      el?.part.add('sx-locked-left')
+    }
+    if(tune.nextNeighbour && tune.nextNeighbour.locked) {
+      el?.part.add('sx-locked-right')
+    }
+    tune.updateTuneName(perf.tuneName)
   }
 
   update(perf: TunePerformance) { log(arguments)()
   }
 
   delete(perf: TunePerformance) { log(arguments)()
-    let region = this.findRegion(perf.tuneId)
-    let tune = this.tunes.find(perf.tuneId);
+    let region = this.findRegion(perf.id)
+    let tune = this.tunes.find(perf.id)
 
     if(!region || !tune) {
       return
@@ -144,19 +154,46 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     var nextNeighbour = tune.nextNeighbour;
 
     region.remove()
-    this.tunes.delete(perf.tuneId)
+    this.tunes.delete(perf.id)
 
     if(prevNeighbour) {
-      let prevRegion = this.findRegion(prevNeighbour.tune.tuneId)
+      let prevRegion = this.findRegion(prevNeighbour.tune.id)
 
       this.updateLockedState(prevRegion, prevNeighbour.tune)
     }
 
     if(nextNeighbour) {
-      let nextRegion = this.findRegion(nextNeighbour.tune.tuneId)
+      let nextRegion = this.findRegion(nextNeighbour.tune.id)
 
       this.updateLockedState(nextRegion, nextNeighbour.tune)
     }
+  }
+
+  move(move: TunePerformanceMove) { log(arguments)()
+    let region = this.findRegion(move.id)
+    let tune = this.tunes.find(move.id);
+
+    if(!region || !tune) {
+      return
+    }
+
+    region.setContent(move.newTuneName)
+    var el = region.element
+    el?.part.add('sx-tune')
+    if(this.editing) {
+      el?.part.add('sx-editable')
+    }
+    if(tune.current) {
+      el?.part.add('sx-current')
+    }
+    if(tune.prevNeighbour && tune.prevNeighbour.locked) {
+      el?.part.add('sx-locked-left')
+    }
+    if(tune.nextNeighbour && tune.nextNeighbour.locked) {
+      el?.part.add('sx-locked-right')
+    }
+    tune.updateTuneId(move.newTuneId)
+    tune.updateTuneName(move.newTuneName)
   }
 
   startEditing() { log(arguments)()
@@ -247,13 +284,13 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     this.updateLockedState(region, tune)
 
     if(tune.prevNeighbour) {
-      var prevRegion = this.findRegion(tune.prevNeighbour.tune.tuneId)
+      var prevRegion = this.findRegion(tune.prevNeighbour.tune.id)
       prevRegion?.setOptions({ start: tune.prevNeighbour.tune.startTime, end: tune.prevNeighbour.tune.endTime })
       this.updateLockedState(prevRegion, tune.prevNeighbour?.tune)
     }
 
     if(tune.nextNeighbour) {
-      var nextRegion = this.findRegion(tune.nextNeighbour.tune.tuneId)
+      var nextRegion = this.findRegion(tune.nextNeighbour.tune.id)
       nextRegion?.setOptions({ start: tune.nextNeighbour.tune.startTime, end: tune.nextNeighbour.tune.endTime })
       this.updateLockedState(nextRegion, tune.nextNeighbour?.tune)
     }
@@ -268,18 +305,18 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
 
     tune.lockNeighbours()
     this.updateLockedState(region, tune)
-    this.emit('tune-region-updating', tune.tuneId, tune.startTime, tune.endTime)
+    this.emit('tune-region-updating', tune.id, tune.startTime, tune.endTime)
 
     if(tune.prevNeighbour) {
-      var prevRegion = this.findRegion(tune.prevNeighbour.tune.tuneId)
+      var prevRegion = this.findRegion(tune.prevNeighbour.tune.id)
       this.updateLockedState(prevRegion, tune.prevNeighbour?.tune)
-      this.emit('tune-region-updating', tune.prevNeighbour.tune.tuneId, tune.prevNeighbour.tune.startTime, tune.prevNeighbour.tune.endTime)
+      this.emit('tune-region-updating', tune.prevNeighbour.tune.id, tune.prevNeighbour.tune.startTime, tune.prevNeighbour.tune.endTime)
     }
 
     if(tune.nextNeighbour) {
-      var nextRegion = this.findRegion(tune.nextNeighbour.tune.tuneId)
+      var nextRegion = this.findRegion(tune.nextNeighbour.tune.id)
       this.updateLockedState(nextRegion, tune.nextNeighbour?.tune)
-      this.emit('tune-region-updating', tune.nextNeighbour.tune.tuneId, tune.nextNeighbour.tune.startTime, tune.nextNeighbour.tune.endTime)
+      this.emit('tune-region-updating', tune.nextNeighbour.tune.id, tune.nextNeighbour.tune.startTime, tune.nextNeighbour.tune.endTime)
     }
   }
 
@@ -314,7 +351,7 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
 
     if(tune.prevNeighbour) {
       tune.prevNeighbour.locked ? lock(region, 'left') : unlock(region, 'left')
-      var prev = this.findRegion(tune.prevNeighbour.tune.tuneId)
+      var prev = this.findRegion(tune.prevNeighbour.tune.id)
       tune.prevNeighbour.locked ? lock(prev, 'right') : unlock(prev, 'right')
     } else {
       unlock(region, 'left')
@@ -322,7 +359,7 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
 
     if(tune.nextNeighbour) {
       tune.nextNeighbour.locked ? lock(region, 'right') : unlock(region, 'right')
-      var next = this.findRegion(tune.nextNeighbour.tune.tuneId)
+      var next = this.findRegion(tune.nextNeighbour.tune.id)
       tune.nextNeighbour.locked ? lock(next, 'left') : unlock(next, 'left')
     } else {
       unlock(region, 'right')
@@ -333,12 +370,12 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     var oldCurrent = this.tunes.getCurrent()
     this.tunes.in(region.id)
     var current = this.tunes.getCurrent()
-    if(oldCurrent?.tuneId !== current?.tuneId) {
-      this.emit('current-tune-region-changed', current?.tuneId)
+    if(oldCurrent?.id !== current?.id) {
+      this.emit('current-tune-region-changed', current?.id)
     }
 
     for(var tune of this.tunes) {
-      var r = this.findRegion(tune.tuneId)
+      var r = this.findRegion(tune.id)
       if(tune.current) {
         r?.element?.part.add('sx-current')
       } else {
@@ -351,12 +388,12 @@ export class TuneRegionManager extends EventEmitter<TuneRegionManagerEvents> {
     var oldCurrent = this.tunes.getCurrent()
     this.tunes.out(region.id)
     var current = this.tunes.getCurrent()
-    if(oldCurrent?.tuneId !== current?.tuneId) {
-      this.emit('current-tune-region-changed', current?.tuneId)
+    if(oldCurrent?.id !== current?.id) {
+      this.emit('current-tune-region-changed', current?.id)
     }
 
     for(var tune of this.tunes) {
-      var r = this.findRegion(tune.tuneId)
+      var r = this.findRegion(tune.id)
       if(tune.current) {
         r?.element?.part.add('sx-current')
       } else {

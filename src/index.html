@@ -21,7 +21,7 @@
             <a href="#" x-text="session.name" @click="loadSession(session.id)"></a>
             <ul>
             <template x-for="tune in session.tunes">
-              <li><a href="#" x-text="tune.tuneName" @click="loadTune(tune.tuneId)"></a></li>
+              <li><a href="#" x-text="tune.tuneName" @click="loadSession(session.id, tune.id)"></a></li>
             </template>
             </ul>
           </li>
@@ -40,7 +40,7 @@
             <a href="#" x-text="tune.name" @click="loadTune(tune.id)"></a>
             <ul>
             <template x-for="performance in tune.performances">
-              <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.tuneId)"></a></li>
+              <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.id)"></a></li>
             </template>
             </ul>
           </li>
@@ -56,7 +56,7 @@
         <div x-show="!pageState.data">No tune here</div>
         <ul>
           <template x-for="performance in pageState.data.performances">
-            <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.tuneId)"></a></li>
+            <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.id)"></a></li>
           </template>
         </ul>
       </div>
@@ -121,13 +121,18 @@
           </div>
 
           <template x-for="tune in pageState.data.session.tunes">
-            <div x-data x-init="$watch('tune.tuneName', name => updateTuneName(pageState.data.session.id, tune.tuneId, name))">
-              <div x-show="pageState.data.currentTune == tune.tuneId">
+            <div x-data x-init="$watch('tune.tuneName', name => updateTuneName(pageState.data.session.id, tune.id, name))">
+              <div x-show="pageState.data.currentTune == tune.id">
                 <h2>
                   <span x-show="!editing" x-text="tune.tuneName"></span>
                   <input x-show="editing" type="text" x-model="tune.tuneName" />
                 </h2>
-                <button x-show="editing" @click="deleteTunePerformance(pageState.data.session.id, tune.tuneId)">
+                <select x-show="editing" @change="changeTune(pageState.data.session.id, tune.id, $event.target.value)">
+                  <template x-for="t in tunes">
+                    <option :value="t.id" x-text="t.name" :selected="t.id == tune.tuneId"></option>
+                  </template>
+                </select>
+                <button x-show="editing" @click="deleteTunePerformance(pageState.data.session.id, tune.id)">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#trash-fill" />
                   </svg>
