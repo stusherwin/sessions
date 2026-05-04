@@ -27,6 +27,11 @@
           </li>
         </template>
         </ul>
+        <form @submit.prevent="uploadFile($event)">
+          <label for="upload">Upload an audio file:</label>
+          <input id="upload" name="upload" type="file" accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4" />
+          <button type="submit">Upload</button>
+        </form>
       </div>
     </template>
 

@@ -1,12 +1,10 @@
-using System.Net;
-using System.Net.Http.Headers;
 using Newtonsoft.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi().AddAntiforgery();
 
 var app = builder.Build();
 
@@ -17,12 +15,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAntiforgery();
 
 app.MapGet("/sessions", async () =>
 {
     var json = await File.ReadAllTextAsync(Path.Combine("data", "sessions.json"));
     var data = JsonConvert.DeserializeObject<Data>(json);
-    return data;
+    return Results.Ok(data);
 })
 .WithName("GetSessions");
 
@@ -33,6 +32,16 @@ app.MapGet("/file/{filename}", async (string filename) =>
     return Results.File(stream, "application/json", filename);
 })
 .WithName("GetFile");
+
+app.MapPost("/file", async (IFormFile upload) =>
+{
+    var filePath = Path.Combine("files", upload.FileName);
+    using var stream = new FileStream(filePath, FileMode.Create);
+    await upload.CopyToAsync(stream);
+    return Results.Ok();
+})
+.DisableAntiforgery()
+.WithName("PutFile");
 
 app.Run();
 

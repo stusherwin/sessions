@@ -272,6 +272,32 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:performance-updated', performance)
   },
 
+  uploadFile(event: SubmitEvent) {
+    if(!(event.target instanceof HTMLFormElement)) {
+      return
+    }
+
+    var upload = event.target.children.namedItem('upload')
+    if(!(upload instanceof HTMLInputElement) || upload.files == null) {
+      return
+    }
+
+    var data = new FormData()
+    data.append(upload.name, upload.files[0])
+
+    window.fetch("http://localhost:5110/file", { method: 'POST', body: data })
+      .then((response) => {
+        console.log(response)
+      })
+      .catch(err => {
+        console.error(err)
+      })
+      .finally(() => {
+      })
+
+    log(event)()
+  },
+
   onPerformanceCreating(detail: {sessionId: string, startTime: number, endTime: number}) { log(arguments)()
     var sessionId = detail.sessionId
     var startTime = detail.startTime
