@@ -13,7 +13,6 @@ export interface WaveformData {
 
 export class WaveformManager {
   sessionId: string
-  private initialPerformanceId: string | undefined
   private regionManager: RegionManager
   private ws: WaveSurfer
   private subscriptions: (() => void)[] = []
@@ -25,10 +24,9 @@ export class WaveformManager {
 
   constructor(data: WaveformData) {
     this.sessionId = data.session.id
-    this.initialPerformanceId = data.performanceId
 
     var regions = RegionsPlugin.create()
-    this.regionManager = new RegionManager(data.performances, regions)
+    this.regionManager = new RegionManager(data.session.id, data.performances, data.performanceId, regions)
     this.container = document.querySelector('.waveform[data-session-id="' + data.session.id + '"]') as HTMLElement
     this.ws = WaveSurfer.create({
       container: this.container,
@@ -43,22 +41,12 @@ export class WaveformManager {
 
     const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
 
-    subscribe(this.regionManager.on('region-creating', this.onRmRegionCreating.bind(this)))
-    subscribe(this.regionManager.on('region-created', this.onRmRegionCreated.bind(this)))
-    subscribe(this.regionManager.on('region-updating', this.onRmRegionUpdating.bind(this)))
-    subscribe(this.regionManager.on('region-updated', this.onRmRegionUpdated.bind(this)))
-    subscribe(this.regionManager.on('current-region-changed', this.onRmCurrentRegionChanged.bind(this)))
     subscribe(this.ws.on('loading', this.onWsLoading.bind(this)))
     subscribe(this.ws.once('decode', this.onWsDecode.bind(this)))
     subscribe(this.ws.on('play', this.onWsPlay.bind(this)))
     subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
     subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
     subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
-    subscribe(listen('sx:performance-created', this.onAppPerformanceCreated.bind(this)))
-    subscribe(listen('sx:performance-updated', this.onAppPerformanceUpdated.bind(this)))
-    // subscribe(listen('sx:tune-name-updated', this.onAppTuneNameUpdated.bind(this)))
-    subscribe(listen('sx:performance-deleted', this.onAppPerformanceDeleted.bind(this)))
-    // subscribe(listen('sx:tune-performance-moved', this.onAppTunePerformanceMoved.bind(this)))
     subscribe(listen('sx:play-pause', this.onAppPlayPause.bind(this)))
     subscribe(listen('sx:play-from-start', this.onAppPlayFromStart.bind(this)))
     subscribe(listen('sx:skip-to-start', this.onAppSkipToStart.bind(this)))
@@ -69,6 +57,7 @@ export class WaveformManager {
     subscribe(listen('sx:zoom-out', this.onAppZoomOut.bind(this)))
     subscribe(listen('sx:editing-start', this.onAppEditingStart.bind(this)))
     subscribe(listen('sx:editing-stop', this.onAppEditingStop.bind(this)))
+    subscribe(listen('sx:current-performance-changed', this.onAppCurrentPerformanceChanged.bind(this)))
   }
 
   unload() { log(arguments)()
@@ -88,54 +77,7 @@ export class WaveformManager {
     this.regionManager.init()
 
     dispatch('sx:waveform-ready', { id: this.sessionId })
-    if(this.initialPerformanceId) {
-      var region = this.regionManager.findRegion(this.initialPerformanceId)
-      if(region) {
-        this.ws.setTime(region.start)
-      }
-    }
-  }
-  
-  private onAppPerformanceCreated(performance: Performance) { log(arguments)()
-    if(performance.sessionId != this.sessionId) {
-      return
-    }
-
-    this.regionManager.create(performance)
-  }
-  
-  private onAppPerformanceUpdated(performance: Performance) { log(arguments)()
-    if(performance.sessionId != this.sessionId) {
-      return
-    }
-
-    this.regionManager.update(performance)
-  }
-    
-  private onAppPerformanceDeleted(performance: Performance) { log(arguments)()
-    if(performance.sessionId != this.sessionId) {
-      return
-    }
-
-    this.regionManager.delete(performance)
-  }
-  
-  private onRmRegionCreating(startTime: number, endTime: number) { log(arguments)()
-    dispatch('sx:performance-creating', { sessionId: this.sessionId, startTime, endTime })
-  }
-
-  private onRmRegionCreated(startTime: number, endTime: number) { log(arguments)()
-    this.ws.setTime(startTime)
-  }
-
-  private onRmRegionUpdating(id: string, startTime: number, endTime: number) { log(arguments)()
-    dispatch('sx:performance-updating', { sessionId: this.sessionId, performanceId: id, startTime, endTime })
-  }
-
-  private onRmRegionUpdated(id: string, startTime: number, endTime: number) {  log(arguments)() }
-  
-  private onRmCurrentRegionChanged(id: string | undefined) { log(arguments)()
-    dispatch('sx:current-performance-changed', { sessionId: this.sessionId, performanceId: id })
+    this.ws.setTime(this.regionManager.initialStartTime + 0.00000001)
   }
 
   private onWsPlay() { log(arguments)()
@@ -175,16 +117,16 @@ export class WaveformManager {
   }
 
   private onAppSkipBackward() { log(arguments)()
-    let tune = this.regionManager.findPrevious(this.ws.getCurrentTime());
-    if(tune) {
-      this.ws.setTime(tune.startTime + 0.00000001);
+    let startTime = this.regionManager.getPreviousStartTime(this.ws.getCurrentTime());
+    if(startTime) {
+      this.ws.setTime(startTime + 0.00000001);
     }
   }
 
   private onAppSkipForward() { log(arguments)()
-    let tune = this.regionManager.findNext(this.ws.getCurrentTime());
-    if(tune) {
-      this.ws.setTime(tune.startTime + 0.00000001);
+    let startTime = this.regionManager.getNextStartTime(this.ws.getCurrentTime());
+    if(startTime) {
+      this.ws.setTime(startTime + 0.00000001);
     }
   }
 
@@ -250,13 +192,9 @@ export class WaveformManager {
     if(parent) {
       parent.style.overflowX = 'hidden'
     }
-
-    this.regionManager.startEditing()
   }
 
   private onAppEditingStop() { log(arguments)()
-    this.regionManager.stopEditing()
-
     this.ws.setOptions({
       autoScroll: true,
       waveColor: 'black',
@@ -272,5 +210,17 @@ export class WaveformManager {
 
     this.scrollPosition = undefined
     this.editing = false
+  }
+    
+  private onAppCurrentPerformanceChanged(details: {
+    sessionId: string, 
+    performanceId: string | undefined, 
+    startTime: number | undefined,
+    endTime: number | undefined,
+    forced: boolean
+  }) { log(arguments)()
+    if(details.forced && details.startTime) {
+      this.ws.setTime(details.startTime + 0.00000001)
+    }
   }
 }

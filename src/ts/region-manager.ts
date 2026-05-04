@@ -1,30 +1,36 @@
-import EventEmitter from './event-emitter.ts'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import type { Performance } from './data.ts'
 import { PerformanceRegionCollection } from './performance-region-collection.ts'
 import type { PerformanceRegion } from './performance-region-collection.ts'
-import { log } from './common.ts'
+import { dispatch, listen, log } from './common.ts'
 
 var delta = 5;
 
-export class RegionManager extends EventEmitter<RegionManagerEvents> {
-  private regions: RegionsPlugin
+export class RegionManager {
+  private sessionId: string
   private performances: PerformanceRegionCollection
+  private initialPerformanceId: string | undefined
+  private regions: RegionsPlugin
   private editing: boolean = false
-  private creating: boolean = false
   private subscriptions: (() => void)[] = []
   private disableDragSelection : (() => void) | undefined = undefined
 
-  constructor(performances: Performance[], regions: RegionsPlugin) {
-    super()
- 
+  public initialStartTime: number = 0
+
+  constructor(sessionId: string, performances: Performance[], initialPerformanceId: string | undefined, regions: RegionsPlugin) {
+    this.sessionId = sessionId
     this.regions = regions
+    this.initialPerformanceId = initialPerformanceId
     this.performances = new PerformanceRegionCollection(performances)
   }
 
   init() { log(arguments)()
     for(var performance of this.performances) {
+      if(this.initialPerformanceId == performance.id) {
+        this.initialStartTime = performance.startTime
+      }
+
       var region = this.regions.addRegion({ 
         id: performance.id, 
         content: performance.tuneName, 
@@ -50,6 +56,11 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     subscribe(this.regions.on('region-updated', this.onRegionUpdated.bind(this)))
     subscribe(this.regions.on('region-in', this.onRegionIn.bind(this)))
     subscribe(this.regions.on('region-out', this.onRegionOut.bind(this)))
+    subscribe(listen('sx:performance-created', this.onAppPerformanceCreated.bind(this)))
+    subscribe(listen('sx:performance-updated', this.onAppPerformanceUpdated.bind(this)))
+    subscribe(listen('sx:performance-deleted', this.onAppPerformanceDeleted.bind(this)))
+    subscribe(listen('sx:editing-start', this.onAppEditingStart.bind(this)))
+    subscribe(listen('sx:editing-stop', this.onAppEditingStop.bind(this)))
   }
 
   unload() { log(arguments)()
@@ -59,31 +70,30 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     this.subscriptions = [];
   }
 
-  findRegion(regionId: string) : Region | undefined { log(arguments)()
-    return this.regions.getRegions().find((r, _) => r.id == regionId)
-  }
-
-  findNext(time: number) : PerformanceRegion | undefined { log(arguments)()
+  getNextStartTime(time: number) : number | undefined { log(arguments)()
     for(var performance of this.performances) {
       if(performance.startTime > time) {
-        return performance
+        return performance.startTime
       }
     }
   }
 
-  findPrevious(time: number) : PerformanceRegion | undefined { log(arguments)()
+  getPreviousStartTime(time: number) : number | undefined { log(arguments)()
     for(var performance of this.performances.reversed()) {
       if(performance.startTime < time - delta) {
-        return performance
+        return performance.startTime
       }
     }
   }
-  
-  create(perf: Performance) { log(arguments)()
+      
+  private onAppPerformanceCreated(performance: Performance) { log(arguments)()
+    if(performance.sessionId != this.sessionId) {
+      return
+    }
+
     var region = this.findRegion("creating")
 
     if(!region) {
-      this.creating = false
       this.disableDragSelection = this.regions.enableDragSelection({
         // color: 'rgba(206.6, 226, 254.6, 0.5)',
         drag: false
@@ -91,9 +101,9 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
       return
     }
 
-    var performance = this.performances.add(perf)
+    var p = this.performances.add(performance)
 
-    region.setOptions({ id : perf.id, content: perf.tuneName, start: perf.startTime, end: perf.endTime })
+    region.setOptions({ id : performance.id, content: performance.tuneName, start: performance.startTime, end: performance.endTime })
     var el = region.element
     if(el) {
       el.part.add('sx-tune')
@@ -103,17 +113,26 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
       }
     }
 
-    this.updateLockedState(region, performance)
-    this.emit('region-created', region.start, region.end)
+    this.updateLockedState(region, p)
+    dispatch('sx:current-performance-changed', { 
+      sessionId: this.sessionId, 
+      performanceId: performance.id,
+      startTime: performance.startTime,
+      endTime: performance.endTime,
+      forced: true
+    })
 
-    this.creating = false
     this.disableDragSelection = this.regions.enableDragSelection({
       // color: 'rgba(206.6, 226, 254.6, 0.5)',
       drag: false
     })
   }
 
-  update(performance: Performance) { log(arguments)()
+  private onAppPerformanceUpdated(performance: Performance) { log(arguments)()
+    if(performance.sessionId != this.sessionId) {
+      return
+    }
+
     let region = this.findRegion(performance.id)
     let p = this.performances.find(performance.id)
 
@@ -139,7 +158,11 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     p.update(performance.tuneId, performance.tuneName, performance.startTime, performance.endTime)
   }
 
-  delete(performance: Performance) { log(arguments)()
+  private onAppPerformanceDeleted(performance: Performance) { log(arguments)()
+    if(performance.sessionId != this.sessionId) {
+      return
+    }
+
     let region = this.findRegion(performance.id)
     let p = this.performances.find(performance.id)
 
@@ -166,7 +189,7 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     }
   }
 
-  startEditing() { log(arguments)()
+  private onAppEditingStart() { log(arguments)()
     this.editing = true
     
     this.disableDragSelection = this.regions.enableDragSelection({
@@ -187,7 +210,7 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     }
   }
 
-  stopEditing() { log(arguments)()
+  private onAppEditingStop() { log(arguments)()
     var rs = this.regions.getRegions()
     for(var i = 0; i < rs.length; i++) {
       rs[i].setOptions({resize: false})
@@ -211,7 +234,6 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
   private onRegionInitialized(region: Region) { log(arguments)()
     // different colour for creating tune
     region.setOptions({ id : 'creating' })
-    this.creating = true
 
     var el = region.element
     if(el) {
@@ -230,7 +252,6 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     var performance = this.performances.tryCreate(region.start, region.end)
     if(!performance) {
       region.remove()
-      this.creating = false
       this.disableDragSelection = this.regions.enableDragSelection({
         // color: 'rgba(206.6, 226, 254.6, 0.5)',
         drag: false
@@ -238,7 +259,11 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
       return
     }
 
-    this.emit('region-creating', performance.startTime, performance.endTime)
+    dispatch('sx:performance-creating', { 
+      sessionId: this.sessionId, 
+      startTime: performance.startTime, 
+      endTime: performance.endTime 
+    })
   }
 
   private onRegionUpdate(region: Region) { log(arguments)()
@@ -275,18 +300,33 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
 
     performance.lockNeighbours()
     this.updateLockedState(region, performance)
-    this.emit('region-updating', performance.id, performance.startTime, performance.endTime)
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: performance.id, 
+      startTime: performance.startTime, 
+      endTime: performance.endTime 
+    })
 
     if(performance.prevNeighbour) {
       var prevRegion = this.findRegion(performance.prevNeighbour.performance.id)
       this.updateLockedState(prevRegion, performance.prevNeighbour?.performance)
-      this.emit('region-updating', performance.prevNeighbour.performance.id, performance.prevNeighbour.performance.startTime, performance.prevNeighbour.performance.endTime)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.prevNeighbour.performance.id, 
+        startTime: performance.prevNeighbour.performance.startTime, 
+        endTime: performance.prevNeighbour.performance.endTime 
+      })
     }
 
     if(performance.nextNeighbour) {
       var nextRegion = this.findRegion(performance.nextNeighbour.performance.id)
       this.updateLockedState(nextRegion, performance.nextNeighbour?.performance)
-      this.emit('region-updating', performance.nextNeighbour.performance.id, performance.nextNeighbour.performance.startTime, performance.nextNeighbour.performance.endTime)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.nextNeighbour.performance.id, 
+        startTime: performance.nextNeighbour.performance.startTime, 
+        endTime: performance.nextNeighbour.performance.endTime 
+      })
     }
   }
 
@@ -341,7 +381,13 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     this.performances.in(region.id)
     var current = this.performances.getCurrent()
     if(oldCurrent?.id !== current?.id) {
-      this.emit('current-region-changed', current?.id)
+      dispatch('sx:current-performance-changed', { 
+        sessionId: this.sessionId, 
+        performanceId: current?.id,
+        startTime: current?.startTime,
+        endTime: current?.endTime,
+        forced: false
+      })
     }
 
     for(var performance of this.performances) {
@@ -359,7 +405,13 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
     this.performances.out(region.id)
     var current = this.performances.getCurrent()
     if(oldCurrent?.id !== current?.id) {
-      this.emit('current-region-changed', current?.id)
+      dispatch('sx:current-performance-changed', { 
+        sessionId: this.sessionId, 
+        performanceId: current?.id,
+        startTime: current?.startTime,
+        endTime: current?.endTime,
+        forced: false
+      })
     }
 
     for(var performance of this.performances) {
@@ -371,12 +423,8 @@ export class RegionManager extends EventEmitter<RegionManagerEvents> {
       }
     }
   }
-}
 
-type RegionManagerEvents = {
-  'region-creating': [number, number]
-  'region-created': [number, number]
-  'region-updating': [string, number, number]
-  'region-updated': [string, number, number]
-  'current-region-changed': [string | undefined]
+  private findRegion(regionId: string) : Region | undefined { log(arguments)()
+    return this.regions.getRegions().find((r, _) => r.id == regionId)
+  }
 }
