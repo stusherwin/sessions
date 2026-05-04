@@ -1,19 +1,20 @@
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
-import type { Session, TunePerformance, TunePerformanceMove } from './data.ts'
-import { TuneRegionManager } from './tune-region-manager.ts'
+import type { Session, Performance } from './data.ts'
+import { RegionManager } from './region-manager.ts'
 import { dispatch, listen } from './common.ts'
 import { log } from './common.ts'
 
 export interface WaveformData {
   session: Session
+  performances: Performance[]
   performanceId: string | undefined
 }
 
 export class WaveformManager {
   sessionId: string
   private initialPerformanceId: string | undefined
-  private tuneRegions: TuneRegionManager
+  private regionManager: RegionManager
   private ws: WaveSurfer
   private subscriptions: (() => void)[] = []
   private zoomTimeout :  number | undefined = undefined
@@ -27,7 +28,7 @@ export class WaveformManager {
     this.initialPerformanceId = data.performanceId
 
     var regions = RegionsPlugin.create()
-    this.tuneRegions = new TuneRegionManager(data.session.tunes, regions)
+    this.regionManager = new RegionManager(data.performances, regions)
     this.container = document.querySelector('.waveform[data-session-id="' + data.session.id + '"]') as HTMLElement
     this.ws = WaveSurfer.create({
       container: this.container,
@@ -42,22 +43,22 @@ export class WaveformManager {
 
     const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
 
-    subscribe(this.tuneRegions.on('tune-region-creating', this.onTrTuneRegionCreating.bind(this)))
-    subscribe(this.tuneRegions.on('tune-region-created', this.onTrTuneRegionCreated.bind(this)))
-    subscribe(this.tuneRegions.on('tune-region-updating', this.onTrTuneRegionUpdating.bind(this)))
-    subscribe(this.tuneRegions.on('tune-region-updated', this.onTrTuneRegionUpdated.bind(this)))
-    subscribe(this.tuneRegions.on('current-tune-region-changed', this.onTrCurrentTuneRegionChanged.bind(this)))
+    subscribe(this.regionManager.on('region-creating', this.onRmRegionCreating.bind(this)))
+    subscribe(this.regionManager.on('region-created', this.onRmRegionCreated.bind(this)))
+    subscribe(this.regionManager.on('region-updating', this.onRmRegionUpdating.bind(this)))
+    subscribe(this.regionManager.on('region-updated', this.onRmRegionUpdated.bind(this)))
+    subscribe(this.regionManager.on('current-region-changed', this.onRmCurrentRegionChanged.bind(this)))
     subscribe(this.ws.on('loading', this.onWsLoading.bind(this)))
     subscribe(this.ws.once('decode', this.onWsDecode.bind(this)))
     subscribe(this.ws.on('play', this.onWsPlay.bind(this)))
     subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
     subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
     subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
-    subscribe(listen('sx:tune-created', this.onAppTuneCreated.bind(this)))
-    subscribe(listen('sx:tune-updated', this.onAppTuneUpdated.bind(this)))
-    subscribe(listen('sx:tune-name-updated', this.onAppTuneNameUpdated.bind(this)))
-    subscribe(listen('sx:tune-performance-deleted', this.onAppTunePerformanceDeleted.bind(this)))
-    subscribe(listen('sx:tune-performance-moved', this.onAppTunePerformanceMoved.bind(this)))
+    subscribe(listen('sx:performance-created', this.onAppPerformanceCreated.bind(this)))
+    subscribe(listen('sx:performance-updated', this.onAppPerformanceUpdated.bind(this)))
+    // subscribe(listen('sx:tune-name-updated', this.onAppTuneNameUpdated.bind(this)))
+    subscribe(listen('sx:performance-deleted', this.onAppPerformanceDeleted.bind(this)))
+    // subscribe(listen('sx:tune-performance-moved', this.onAppTunePerformanceMoved.bind(this)))
     subscribe(listen('sx:play-pause', this.onAppPlayPause.bind(this)))
     subscribe(listen('sx:play-from-start', this.onAppPlayFromStart.bind(this)))
     subscribe(listen('sx:skip-to-start', this.onAppSkipToStart.bind(this)))
@@ -75,7 +76,7 @@ export class WaveformManager {
       unsubscribe();
     }
     this.subscriptions = [];
-    this.tuneRegions.unload()
+    this.regionManager.unload()
     this.ws.destroy();
   }
 
@@ -84,73 +85,57 @@ export class WaveformManager {
   }
 
   private onWsDecode() { log(arguments)()
-    this.tuneRegions.init()
+    this.regionManager.init()
 
     dispatch('sx:waveform-ready', { id: this.sessionId })
     if(this.initialPerformanceId) {
-      var region = this.tuneRegions.findRegion(this.initialPerformanceId)
+      var region = this.regionManager.findRegion(this.initialPerformanceId)
       if(region) {
         this.ws.setTime(region.start)
       }
     }
   }
   
-  private onAppTuneCreated(tune: TunePerformance) { log(arguments)()
-    if(tune.sessionId != this.sessionId) {
+  private onAppPerformanceCreated(performance: Performance) { log(arguments)()
+    if(performance.sessionId != this.sessionId) {
       return
     }
 
-    this.tuneRegions.create(tune)
+    this.regionManager.create(performance)
   }
   
-  private onAppTuneUpdated(tune: TunePerformance) { log(arguments)()
-    if(tune.sessionId != this.sessionId) {
+  private onAppPerformanceUpdated(performance: Performance) { log(arguments)()
+    if(performance.sessionId != this.sessionId) {
       return
     }
 
-    this.tuneRegions.update(tune)
+    this.regionManager.update(performance)
+  }
+    
+  private onAppPerformanceDeleted(performance: Performance) { log(arguments)()
+    if(performance.sessionId != this.sessionId) {
+      return
+    }
+
+    this.regionManager.delete(performance)
   }
   
-  private onAppTuneNameUpdated(tune: TunePerformance) { log(arguments)()
-    if(tune.sessionId != this.sessionId) {
-      return
-    }
-
-    this.tuneRegions.updateName(tune)
-  }
-  
-  private onAppTunePerformanceDeleted(tune: TunePerformance) { log(arguments)()
-    if(tune.sessionId != this.sessionId) {
-      return
-    }
-
-    this.tuneRegions.delete(tune)
-  }
-  
-  private onAppTunePerformanceMoved(move: TunePerformanceMove) { log(arguments)()
-    if(move.sessionId != this.sessionId) {
-      return
-    }
-
-    this.tuneRegions.move(move)
+  private onRmRegionCreating(startTime: number, endTime: number) { log(arguments)()
+    dispatch('sx:performance-creating', { sessionId: this.sessionId, startTime, endTime })
   }
 
-  private onTrTuneRegionCreating(startTime: number, endTime: number) { log(arguments)()
-    dispatch('sx:tune-creating', { sessionId: this.sessionId, startTime, endTime })
-  }
-
-  private onTrTuneRegionCreated(startTime: number, endTime: number) { log(arguments)()
+  private onRmRegionCreated(startTime: number, endTime: number) { log(arguments)()
     this.ws.setTime(startTime)
   }
 
-  private onTrTuneRegionUpdating(id: string, startTime: number, endTime: number) { log(arguments)()
-    dispatch('sx:tune-updating', { sessionId: this.sessionId, id, startTime, endTime })
+  private onRmRegionUpdating(id: string, startTime: number, endTime: number) { log(arguments)()
+    dispatch('sx:performance-updating', { sessionId: this.sessionId, performanceId: id, startTime, endTime })
   }
 
-  private onTrTuneRegionUpdated(id: string, startTime: number, endTime: number) {  log(arguments)() }
+  private onRmRegionUpdated(id: string, startTime: number, endTime: number) {  log(arguments)() }
   
-  private onTrCurrentTuneRegionChanged(id: string | undefined) { log(arguments)()
-    dispatch('sx:current-tune-changed', { sessionId: this.sessionId, id })
+  private onRmCurrentRegionChanged(id: string | undefined) { log(arguments)()
+    dispatch('sx:current-performance-changed', { sessionId: this.sessionId, performanceId: id })
   }
 
   private onWsPlay() { log(arguments)()
@@ -190,14 +175,14 @@ export class WaveformManager {
   }
 
   private onAppSkipBackward() { log(arguments)()
-    let tune = this.tuneRegions.findPrevious(this.ws.getCurrentTime());
+    let tune = this.regionManager.findPrevious(this.ws.getCurrentTime());
     if(tune) {
       this.ws.setTime(tune.startTime + 0.00000001);
     }
   }
 
   private onAppSkipForward() { log(arguments)()
-    let tune = this.tuneRegions.findNext(this.ws.getCurrentTime());
+    let tune = this.regionManager.findNext(this.ws.getCurrentTime());
     if(tune) {
       this.ws.setTime(tune.startTime + 0.00000001);
     }
@@ -266,11 +251,11 @@ export class WaveformManager {
       parent.style.overflowX = 'hidden'
     }
 
-    this.tuneRegions.startEditing()
+    this.regionManager.startEditing()
   }
 
   private onAppEditingStop() { log(arguments)()
-    this.tuneRegions.stopEditing()
+    this.regionManager.stopEditing()
 
     this.ws.setOptions({
       autoScroll: true,

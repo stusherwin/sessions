@@ -1,19 +1,17 @@
 export interface Session {
-  id: string,
-  name: string,
-  filename: string,
-  peaks: number[][] | undefined,
-  duration: number | undefined,
-  tunes: TunePerformance[]
+  id: string
+  name: string
+  filename: string
+  peaks: number[][] | undefined
+  duration: number | undefined
 }
 
 export interface Tune {
   id: string
   name: string
-  performances: TunePerformance[]
 }
 
-export interface TunePerformance {
+export interface Performance {
   id: string
   tuneId: string
   tuneName: string
@@ -21,11 +19,4 @@ export interface TunePerformance {
   sessionName: string
   startTime: number
   endTime: number
-}
-
-export interface TunePerformanceMove {
-  id: string
-  sessionId: string
-  newTuneId: string
-  newTuneName: string
 }
