@@ -4,7 +4,7 @@ import { log } from './common.ts'
 export class PerformanceRegionCollection {
   private list: PerformanceRegion[] = []
 
-  constructor(performances: Performance[]) {
+  constructor(performances: Performance[]) { log(arguments)()
     this.list = performances
       .map(t => new PerformanceRegion(t.id, t.tuneId, t.tuneName, t.startTime, t.endTime))
       .sort((a, b) => a.startTime - b.startTime)
@@ -123,6 +123,10 @@ export class PerformanceRegionCollection {
   }
 
   private lockNeighbours() { log(arguments)()
+    if(!this.list.length) {
+      return;
+    }
+    
     this.list[0].prevNeighbour = undefined
 
     for(var i = 1; i < this.list.length; i++) {

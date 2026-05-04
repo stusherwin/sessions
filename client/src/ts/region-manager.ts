@@ -18,7 +18,11 @@ export class RegionManager {
 
   public initialStartTime: number = 0
 
-  constructor(sessionId: string, performances: Performance[], initialPerformanceId: string | undefined, regions: RegionsPlugin) {
+  constructor(
+    sessionId: string, 
+    performances: Performance[], 
+    initialPerformanceId: string | undefined, 
+    regions: RegionsPlugin) { log(arguments)()
     this.sessionId = sessionId
     this.regions = regions
     this.initialPerformanceId = initialPerformanceId

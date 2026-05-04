@@ -56,7 +56,7 @@ const App = defineComponent<unknown, App>(() => ({
   nextPerformanceId: 0,
 
   init() { log(arguments)()
-    window.fetch(new Request("/sessions.json"))
+    window.fetch(new Request("http://localhost:5110/sessions"))
       .then((response) => {
         if(!response.ok) { 
             throw new Error('JSON file not found');

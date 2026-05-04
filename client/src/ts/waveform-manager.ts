@@ -22,7 +22,7 @@ export class WaveformManager {
   private scrollPosition: number | undefined = undefined
   private container: HTMLElement
 
-  constructor(data: WaveformData) {
+  constructor(data: WaveformData) { log(arguments)()
     this.sessionId = data.session.id
 
     var regions = RegionsPlugin.create()
@@ -33,7 +33,7 @@ export class WaveformManager {
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red',
-      url: '/' + data.session.filename,
+      url: 'http://localhost:5110/file/' + data.session.filename,
       plugins: [regions],
       peaks: data.session.peaks,
       duration: data.session.duration
