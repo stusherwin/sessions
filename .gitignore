@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 package-lock.json
+client/node_modules
+client/dist
+client/dist-ssr
+client/*.local
+client/package-lock.json
 
 # Editor directories and files
 .vscode/*
