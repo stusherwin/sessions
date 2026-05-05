@@ -27,10 +27,10 @@
           </li>
         </template>
         </ul>
-        <form @submit.prevent="uploadFile($event)">
-          <label for="upload">Upload an audio file:</label>
-          <input id="upload" name="upload" type="file" accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4" />
-          <button type="submit">Upload</button>
+        <form @submit.prevent="uploadFile($refs.upload)">
+          <div><label for="upload">Upload an audio file:</label></div>
+          <div><input x-ref="upload" id="upload" name="upload" type="file" accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4" /></div>
+          <div><button type="submit">Upload</button></div>
         </form>
       </div>
     </template>

@@ -45,7 +45,7 @@ interface App {
   onCurrentPerformanceChanged: (detail: {sessionId: string, performanceId: string | undefined}) => void
 }
 
-const App = defineComponent<unknown, App>(() => ({ 
+const App = defineComponent<unknown, App>(() => ({
   sessions: [], 
   tunes: [], 
   performances: [], 
@@ -65,6 +65,7 @@ const App = defineComponent<unknown, App>(() => ({
         return response.json() as Promise<AppData>
       })
       .then((data : AppData) => {
+        log(data)()
         this.sessions = data.sessions
         this.tunes = data.tunes
         this.performances = data.performances
@@ -91,7 +92,33 @@ const App = defineComponent<unknown, App>(() => ({
         console.error(err)
       })
       .finally(() => {
+        setInterval(() => {
+          log('saving...')()
+
+          var data = {
+            sessions: this.sessions,
+            tunes: this.tunes,
+            performances: this.performances
+          }
+
+          window.fetch("http://localhost:5110/sessions", { method: 'POST', body: JSON.stringify(data), headers: {
+            "Content-Type": "application/json",
+          }})
+            .then(async (response) => {
+              if(!response.ok) { 
+                var error = await response.text();
+                throw new Error(error);
+              }
+              log('done')()
+            })
+            .catch(err => {
+              console.error(err)
+            })
+            .finally(() => {
+            })          
+        }, 5000)
       })
+
   },
 
   findSession(id: string): Session {
@@ -202,13 +229,10 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   zoomIn() { log(arguments)()
-    log('hi')
-
     this.$dispatch('sx:zoom-in')
   },
 
   zoomOut() { log(arguments)()
-    log('hi')
     this.$dispatch('sx:zoom-out')
   },
 
@@ -272,22 +296,29 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:performance-updated', performance)
   },
 
-  uploadFile(event: SubmitEvent) {
-    if(!(event.target instanceof HTMLFormElement)) {
-      return
-    }
-
-    var upload = event.target.children.namedItem('upload')
-    if(!(upload instanceof HTMLInputElement) || upload.files == null) {
-      return
-    }
+  uploadFile(upload: HTMLInputElement) {
+    console.log(upload)
 
     var data = new FormData()
-    data.append(upload.name, upload.files[0])
+    if(upload.files && upload.files.length) {
+      data.append(upload.name, upload.files[0])
+    }
+
+    console.log(data)
 
     window.fetch("http://localhost:5110/file", { method: 'POST', body: data })
-      .then((response) => {
+      .then(async (response) => {
         console.log(response)
+
+        if(!response.ok) {
+          var error = await response.text();
+          throw new Error(error);
+        }
+
+        return response.json() as Promise<Session>
+      })
+      .then((session : Session) => {
+        this.sessions.push(session)
       })
       .catch(err => {
         console.error(err)
