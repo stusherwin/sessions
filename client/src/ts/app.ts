@@ -17,21 +17,35 @@ interface AppData {
   performances: Performance[]
 }
 
+type PageState = { page: 'sessions' } 
+               | { page: 'tunes' } 
+               | { page: 'session', data: Waveform } 
+               | { page: 'tune', data: Tune }
+
 interface App {
-  sessions: Session[] 
-  tunes: Tune[]
-  performances: Performance[]
-  pageState: { page: 'sessions' } | { page: 'tunes' } | { page: 'session', data: Waveform } | { page: 'tune', data: Tune }
+  initialised: boolean
+  loaded: boolean
+  data: AppData
+  pageState: PageState
+  loading: boolean
+  saving: boolean
+  uploading: boolean
+  error: boolean
   playing: boolean
   editing: boolean
   nextTuneId: number
   nextPerformanceId: number
+  fileUpload: string | undefined
+  newSessionName: string | undefined
 
   init: () => void
   findSession: (id: string) => Session
   findTune: (id: string) => Tune
   findPerformance: (id: string) => Performance
   loadSession: (sessionId: string, sessionName: string) => void
+  loadTune: (tuneId: string) => void
+  loadSessions: () => void
+  loadTunes: () => void
   updateTuneName: (sessionId: string, tuneId: string, name: string) => void
   deletePerformance: (sessionId: string, tuneId: string) => void
   playFromStart: () => void
@@ -40,22 +54,40 @@ interface App {
   skipBackward: () => void
   skipForward: () => void
   playPause: () => void
+  zoomIn: () => void
+  zoomOut: () => void
+  toggleEditing: () => void
+  changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
+  uploadFile: (form: HTMLFormElement) => void
+  saveData: () => void
+  saveDataDebounced: (() => void) | undefined,
   onPerformanceCreating: (detail: {sessionId: string, startTime: number, endTime: number}) => void
   onPerformanceUpdating: (detail: {sessionId: string, performanceId: string, startTime: number, endTime: number}) => void
   onCurrentPerformanceChanged: (detail: {sessionId: string, performanceId: string | undefined}) => void
 }
 
 const App = defineComponent<unknown, App>(() => ({
-  sessions: [], 
-  tunes: [], 
-  performances: [], 
-  pageState: { page: 'sessions' },
+  initialised: false,
+  loaded: false,
+  data: { 
+    sessions: [], 
+    tunes: [], 
+    performances: []
+  }, 
+  pageState: { page: 'sessions' } as PageState,
+  loading: true,
+  saving: false,
+  uploading: false,
+  error: false,
   playing: false,
   editing: false,
   nextTuneId: 0,
   nextPerformanceId: 0,
+  fileUpload: undefined,
+  newSessionName: undefined,
 
   init() { log(arguments)()
+    this.initialised = true
     window.fetch(new Request("http://localhost:5110/sessions"))
       .then((response) => {
         if(!response.ok) { 
@@ -66,12 +98,12 @@ const App = defineComponent<unknown, App>(() => ({
       })
       .then((data : AppData) => {
         log(data)()
-        this.sessions = data.sessions
-        this.tunes = data.tunes
-        this.performances = data.performances
+        this.data.sessions = data.sessions
+        this.data.tunes = data.tunes
+        this.data.performances = data.performances
 
         var maxTuneId = 0
-        for(var tune of this.tunes) {
+        for(var tune of this.data.tunes) {
           var id = parseInt(tune.id.split('-')[1])
           if(id > maxTuneId) {
             maxTuneId = id
@@ -80,49 +112,27 @@ const App = defineComponent<unknown, App>(() => ({
         this.nextTuneId = maxTuneId + 1
 
         var maxPerfId = 0
-        for(var perf of this.performances) {
+        for(var perf of this.data.performances) {
           var id = parseInt(perf.id.split('-')[1])
           if(id > maxPerfId) {
             maxPerfId = id
           }
         }
         this.nextPerformanceId = maxPerfId + 1
+        this.error = false
+        this.loaded = true
       })
       .catch(err => {
         console.error(err)
+        this.error = true
       })
       .finally(() => {
-        setInterval(() => {
-          log('saving...')()
-
-          var data = {
-            sessions: this.sessions,
-            tunes: this.tunes,
-            performances: this.performances
-          }
-
-          window.fetch("http://localhost:5110/sessions", { method: 'POST', body: JSON.stringify(data), headers: {
-            "Content-Type": "application/json",
-          }})
-            .then(async (response) => {
-              if(!response.ok) { 
-                var error = await response.text();
-                throw new Error(error);
-              }
-              log('done')()
-            })
-            .catch(err => {
-              console.error(err)
-            })
-            .finally(() => {
-            })          
-        }, 5000)
+        this.loading = false
       })
-
   },
 
   findSession(id: string): Session {
-    var session = this.sessions.find(s => s.id == id)
+    var session = this.data.sessions.find(s => s.id == id)
     if(!session) {
       throw new Error(`Session not found: ${id}`)
     }
@@ -130,7 +140,7 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   findTune(id: string): Tune {
-    var tune = this.tunes.find(s => s.id == id)
+    var tune = this.data.tunes.find(s => s.id == id)
     if(!tune) {
       throw new Error(`Tune not found: ${id}`)
     }
@@ -138,7 +148,7 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   findPerformance(id: string): Performance {
-    var performance = this.performances.find(s => s.id == id)
+    var performance = this.data.performances.find(s => s.id == id)
     if(!performance) {
       throw new Error(`Performance not found: ${id}`)
     }
@@ -161,9 +171,9 @@ const App = defineComponent<unknown, App>(() => ({
         currentPerformance: undefined
       }
     }
-    this.editing = false
+    // this.editing = false
 
-    var performances = this.performances.filter(p => p.sessionId == sessionId)
+    var performances = this.data.performances.filter(p => p.sessionId == sessionId)
     this.$dispatch('sx:waveform-loading', { session: session, performances, performanceId })
   },
 
@@ -179,7 +189,7 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'tune',
       data: tune
     }
-    this.editing = false
+    // this.editing = false
   },
 
   loadSessions() { log(arguments)()
@@ -190,7 +200,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'sessions'
     }
-    this.editing = false
+    // this.editing = false
   },
 
   loadTunes() { log(arguments)()
@@ -201,7 +211,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'tunes'
     }
-    this.editing = false
+    // this.editing = false
   },
 
   playFromStart() { log(arguments)()
@@ -269,9 +279,9 @@ const App = defineComponent<unknown, App>(() => ({
 
     var tuneId = tune.id
     this.pageState.data.currentPerformance = undefined
-    this.performances = this.performances.filter(p => p.id != performanceId)
-    if(this.performances.filter(p => p.tuneId == tuneId).length == 0) {
-      this.tunes = this.tunes.filter(t => t.id != tuneId)
+    this.data.performances = this.data.performances.filter(p => p.id != performanceId)
+    if(this.data.performances.filter(p => p.tuneId == tuneId).length == 0) {
+      this.data.tunes = this.data.tunes.filter(t => t.id != tuneId)
     }
 
     this.$dispatch('sx:performance-deleted', performance)
@@ -289,22 +299,26 @@ const App = defineComponent<unknown, App>(() => ({
     var tuneId = tune.id
     performance.tuneId = newTuneId
     performance.tuneName = newTune.name
-    if(this.performances.filter(p => p.tuneId == tuneId).length == 0) {
-      this.tunes = this.tunes.filter(t => t.id != tuneId)
+    if(this.data.performances.filter(p => p.tuneId == tuneId).length == 0) {
+      this.data.tunes = this.data.tunes.filter(t => t.id != tuneId)
     }
 
     this.$dispatch('sx:performance-updated', performance)
   },
 
-  uploadFile(upload: HTMLInputElement) {
-    console.log(upload)
-
+  uploadFile(form: HTMLFormElement) { log(arguments)()
+    this.uploading = true
     var data = new FormData()
-    if(upload.files && upload.files.length) {
-      data.append(upload.name, upload.files[0])
+    
+    var inputs = form.getElementsByTagName('input')
+    
+    for(var input of inputs) {
+      if(input.files && input.files.length) {
+        data.append(input.name, input.files[0])
+      } else {
+        data.append(input.name, input.value)
+      }
     }
-
-    console.log(data)
 
     window.fetch("http://localhost:5110/file", { method: 'POST', body: data })
       .then(async (response) => {
@@ -318,15 +332,55 @@ const App = defineComponent<unknown, App>(() => ({
         return response.json() as Promise<Session>
       })
       .then((session : Session) => {
-        this.sessions.push(session)
+        this.data.sessions.push(session)
+        this.error = false
       })
       .catch(err => {
         console.error(err)
+        this.error = true
       })
       .finally(() => {
+        this.fileUpload = undefined
+        this.newSessionName = undefined
+        this.uploading = false
       })
+  },
 
-    log(event)()
+  saveDataDebounced: undefined,
+
+  saveData() {
+    if(!this.loaded) {
+      return
+    }
+
+    if(!this.saveDataDebounced) {
+      this.saveDataDebounced = Alpine.debounce(() => {
+        this.saving = true
+
+        window.fetch("http://localhost:5110/sessions", { method: 'POST', body: JSON.stringify(this.data), headers: {
+          "Content-Type": "application/json",
+        }})
+          .then(async (response) => {
+            if(!response.ok) { 
+              var error = await response.text();
+              throw new Error(error);
+            }
+            this.error = false
+          })
+          .catch(err => {
+            console.error(err)
+            this.error = true
+          })
+          .finally(() => {
+            setTimeout(() => {
+              this.saving = false
+            }, 1000)
+            this.saveDataDebounced = undefined
+          })
+      }, 500)
+    }
+
+    this.saveDataDebounced()
   },
 
   onPerformanceCreating(detail: {sessionId: string, startTime: number, endTime: number}) { log(arguments)()
@@ -362,8 +416,8 @@ const App = defineComponent<unknown, App>(() => ({
       name: tuneName
     }
 
-    this.tunes.push(tune)
-    this.performances.push(performance)
+    this.data.tunes.push(tune)
+    this.data.performances.push(performance)
 
     this.$dispatch('sx:performance-created', performance)
   },

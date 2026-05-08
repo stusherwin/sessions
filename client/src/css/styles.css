@@ -1,0 +1,257 @@
+@import "tailwindcss";
+
+/* @theme {
+  --color-red-50: oklch(97.1% 0.013 17.38);
+  --color-red-100: oklch(93.6% 0.032 17.717);
+  --color-red-200: oklch(88.5% 0.062 18.334);
+  --color-red-300: oklch(80.8% 0.114 19.571);
+  --color-red-400: oklch(70.4% 0.191 22.216);
+  --color-red-500: oklch(63.7% 0.237 25.331);
+  --color-red-600: oklch(57.7% 0.245 27.325);
+  --color-red-700: oklch(50.5% 0.213 27.518);
+  --color-red-800: oklch(44.4% 0.177 26.899);
+  --color-red-900: oklch(39.6% 0.141 25.723);
+  --color-red-950: oklch(25.8% 0.092 26.042);
+
+  --color-gray-50: oklch(98.5% 0.002 17.38);
+  --color-gray-100: oklch(96.7% 0.003 17.717);
+  --color-gray-200: oklch(92.8% 0.006 18.334);
+  --color-gray-300: oklch(87.2% 0.01 19.571);
+  --color-gray-400: oklch(70.7% 0.022 22.216);
+  --color-gray-500: oklch(55.1% 0.027 25.331);
+  --color-gray-600: oklch(44.6% 0.03 27.325);
+  --color-gray-700: oklch(37.3% 0.034 27.518);
+  --color-gray-800: oklch(27.8% 0.033 26.899);
+  --color-gray-900: oklch(21% 0.034 25.723);
+  --color-gray-950: oklch(13% 0.028 26.042);
+} */
+
+@layer base {
+  a {
+    @apply text-red-700;
+  }
+
+  button, .upload-label {
+    @apply bg-gray-300 py-1 px-2 border rounded border-gray-400 cursor-pointer text-black;
+
+    &:hover {
+      @apply bg-black border-black text-white;
+    }
+  }
+
+  input:not([type="file"]) {
+    @apply border rounded border-gray-400 py-1 px-2;
+  }
+
+  input[type="file"] {
+    @apply absolute -left-96;
+  }
+
+  h1 {
+    @apply text-2xl font-bold mt-2;
+  }
+
+  h2 {
+    @apply text-lg font-bold mt-2;
+  }
+
+  h3 {
+    @apply font-bold mt-2;
+  }
+
+  li li {
+    @apply ml-4;
+  }
+
+  .editing {
+    @apply bg-black;
+
+    a {
+      @apply text-red-300;
+    }
+
+    h1, h2, h3, h4, p, label, input, .separator, .waveform, .status {
+      @apply text-white;
+    }
+
+    button, .upload-label {
+      @apply bg-gray-300 border-black text-black;
+
+      &:hover {
+        @apply bg-black border-white text-white;
+      }
+    }
+
+    input:not([type="file"]) {
+      @apply border border-white bg-gray-800 text-white;
+    }
+  }
+}
+
+.waveform {
+  margin: 20px 0;
+  padding: 10px 0;
+}
+
+.session {
+  margin-top: 30px;
+}
+
+.inverted {
+  background: black;
+  color: white;
+}
+
+.red {
+  background: red;
+}
+
+button {
+  display: flex;
+
+  &[type="submit"] {
+    svg {
+      margin-right: 5px;
+      position: relative;
+      top: 3px;
+    }
+  }
+}
+
+.button-group {
+  display: flex;
+
+  button {
+    margin-right: 5px;
+  }
+}
+
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+#root, #__next {
+  isolation: isolate;
+}
+
+::part(scroll) {
+  padding: 30px 0;
+}
+
+::part(regions-container) {
+  top: -30px;
+  bottom: -30px;
+  height: unset;
+}
+
+::part(region sx-section) {
+  /* font-weight: bold; */
+}
+
+::part(region-content) {
+  position: absolute;
+  top: calc(-30px - 6px);
+  margin-top: 0;
+  left: 0;
+  right: 0;
+  padding: 0;
+  padding-left: 5px;
+  display: block;
+  height: 28px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+::part(region-content sx-song) {
+  /* font-weight: bold; */
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+::part(region-content sx-section) {
+  /* font-weight: bold; */
+  padding-top: 0;
+  padding-bottom: 0;
+  position: absolute;
+  bottom: 0;
+}
+
+::part(region) {
+  top: 30px;
+  bottom: 30px;
+  height: unset;
+  border-radius: 0;
+  border: none;
+  background: rgba(255 0 0 / 0.2);
+}
+
+::part(region sx-current) {
+  background: rgba(255 0 0 / 0.45);
+}
+
+::part(region)::before,
+::part(region)::after {
+  content: '';
+  position: absolute;
+  top: -30px;
+  bottom: -30px;
+  width: 0px;
+}
+
+::part(region)::before {
+  left: 0;
+  border-left: 2px solid black;
+}
+
+::part(region)::after {
+  right: 0;
+  border-right: 2px solid black;
+}
+
+::part(region sx-locked-left)::before {
+  border-left: 2px dotted black;
+}
+
+::part(region sx-locked-right)::after {
+  border-right: none;
+}
+
+::part(region-handle) {
+  background: none;
+  border: none;
+  border-radius: 0;
+  width: 20px;
+  cursor: default;
+}
+
+::part(region-handle-left) {
+  left: calc(-(20px / 2));
+}
+
+::part(region-handle-right) {
+  right: calc(-(20px / 2));
+}
+
+::part(region-handle sx-editable) {
+  cursor: ew-resize;
+}
+
+::part(region sx-editable) {
+  background: rgba(255 0 0 / 0.3);
+}
+
+::part(region sx-editable sx-current) {
+  background: rgba(255 0 0 / 0.55);
+}
+
+::part(region sx-editable)::before,
+::part(region sx-editable)::after {
+  border-color: white;
+}

@@ -5,46 +5,101 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    .uninitialised {
+      display: none;
+    }
+  </style>
 </head>
 
 <body>
-  <div x-data="app">
-    <a href="#" @click="loadSessions()">Sessions</a> |
-    <a href="#" @click="loadTunes()">Tunes</a>
-    <template x-if="pageState.page == 'sessions'">
+  <div x-data="app" class="uninitialised p-4 min-h-screen" :class="{ 'uninitialised': !initialised, 'editing': editing }" x-init="$watch('data', () => saveData())">
+    <div class="flex items-center">
+      <a class="block mr-2 leading-none" href="#" @click="loadSessions()">Sessions</a> 
+      <span class="block separator mr-2 leading-none">|</span>
+      <a class="block mr-auto leading-none" href="#" @click="loadTunes()">Tunes</a>
+      <svg x-show="saving || loading || uploading" class="status bi mr-2 animate-spin" width="16" height="16" fill="currentColor">
+        <use href="#hourglass" />
+      </svg>
+      <svg x-show="error" class="status bi mr-2 text-red-700" width="16" height="16" fill="currentColor">
+        <use href="#exclamation-triangle-fill" />
+      </svg>
+      <svg x-show="!saving && !loading && !uploading && !error" class="status bi mr-2" width="16" height="16" fill="currentColor">
+        <use href="#check-circle-fill" />
+      </svg>
+      <button @click="toggleEditing()">
+        <svg class="bi" width="16" height="16" fill="currentColor">
+          <use href="#pencil-fill" x-show="!editing" />
+          <use href="#x" x-show="editing" />
+        </svg>
+      </button>
+    </div>
+    <template x-if="loaded && pageState.page == 'sessions'">
       <div>
         <h1>Sessions</h1>
 
-        <ul>
-        <template x-for="session in sessions">
-          <li>
-            <a href="#" x-text="session.name" @click="loadSession(session.id)"></a>
-            <ul>
-            <template x-for="performance in performances.filter(p => p.sessionId == session.id)">
-              <li><a href="#" x-text="performance.tuneName" @click="loadSession(session.id, performance.id)"></a></li>
+        <div>
+          <ul>
+            <template x-for="session in data.sessions">
+              <li class="border-b border-gray-300 py-2">
+                <a x-show="!editing" href="#" x-text="session.name" @click="loadSession(session.id)"></a>
+                <div x-show="editing" class="flex">
+                  <input type="text" class="w-full" x-model="session.name" />
+                </div>
+                <ul>
+                <template x-for="performance in data.performances.filter(p => p.sessionId == session.id)">
+                  <li><a href="#" x-text="performance.tuneName" @click="loadSession(session.id, performance.id)"></a></li>
+                </template>
+                </ul>
+              </li>
             </template>
-            </ul>
-          </li>
-        </template>
-        </ul>
-        <form @submit.prevent="uploadFile($refs.upload)">
-          <div><label for="upload">Upload an audio file:</label></div>
-          <div><input x-ref="upload" id="upload" name="upload" type="file" accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4" /></div>
-          <div><button type="submit">Upload</button></div>
-        </form>
+          </ul>
+          <template x-if="editing">
+            <form @submit.prevent="uploadFile($event.target)" enctype="multipart/form-data">
+              <h3>New session</h3>
+
+              <div class="mt-4">
+                <label class="block">Name</label>
+                <input type="text" name="sessionName" class="w-full" x-model="newSessionName" />
+              </div>
+
+              <div class="mt-4">
+                <label class="upload-label" for="upload-file">Select audio file</label>
+
+                <input id="upload-file" 
+                       name="upload"
+                       x-model="fileUpload"
+                       type="file" 
+                       accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4"
+                       @change="if(!newSessionName) { newSessionName = $event.target.files[0].name.split('.')[0]; }" />
+              </div>
+              <div x-show="fileUpload" class="mt-2">
+                Selected file: <span x-text="(fileUpload || '').replace('C:\\fakepath\\', '')"></span>
+              </div>
+              <div class="mt-4">
+                <button type="submit" :disabled="uploading">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#upload" />
+                  </svg>
+                  Upload
+                </button>
+              </div>
+            </form>
+          </template>
+        </div>
       </div>
     </template>
 
-    <template x-if="pageState.page == 'tunes'">
+    <template x-if="loaded && pageState.page == 'tunes'">
       <div>
         <h1>Tunes</h1>
 
         <ul>
-        <template x-for="tune in tunes">
+        <template x-for="tune in data.tunes">
           <li>
             <a href="#" x-text="tune.name" @click="loadTune(tune.id)"></a>
             <ul>
-            <template x-for="performance in performances.filter(p => p.tuneId == tune.id)">
+            <template x-for="performance in data.performances.filter(p => p.tuneId == tune.id)">
               <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.id)"></a></li>
             </template>
             </ul>
@@ -54,20 +109,20 @@
       </div>
     </template>
 
-    <template x-if="pageState.page == 'tune'">
+    <template x-if="loaded && pageState.page == 'tune'">
       <div>
         <h1 x-text="pageState.data.name"></h1>
         <div x-show="pageState.data">Some tune here</div>
         <div x-show="!pageState.data">No tune here</div>
         <ul>
-          <template x-for="performance in performances.filter(p => p.tuneId == pageState.data.id)">
+          <template x-for="performance in data.performances.filter(p => p.tuneId == pageState.data.id)">
             <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.id)"></a></li>
           </template>
         </ul>
       </div>
     </template>
 
-    <template x-if="pageState.page == 'session'">
+    <template x-if="loaded && pageState.page == 'session'">
       <div @sx:waveform-ready.window="pageState.data.ready = true"
            @sx:waveform-load-progress-updated.window="pageState.data.loading = $event.detail.loading"
            @sx:performance-creating.window="onPerformanceCreating($event.detail)"
@@ -81,7 +136,7 @@
         </div>
         <div x-show="pageState.data.ready">
           <div :data-session-id="pageState.data.session.id" class="waveform"></div>
-          <div>
+          <div class="button-group">
             <button @click="skipToStart()">
               <svg class="bi" width="16" height="16" fill="currentColor">
                 <use href="#skip-start-fill" />
@@ -118,14 +173,9 @@
                 <use href="#zoom-out" />
               </svg>
             </button>
-            <button @click="toggleEditing()" :class="editing ? 'inverted' : ''">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#pencil-fill" />
-              </svg>
-            </button>
           </div>
 
-          <template x-for="performance in performances.filter(p => p.sessionId == pageState.data.session.id)">
+          <template x-for="performance in data.performances.filter(p => p.sessionId == pageState.data.session.id)">
             <div x-data x-init="$watch('performance.tuneName', name => updateTuneName(pageState.data.session.id, performance.id, name))">
               <div x-show="pageState.data.currentPerformance == performance.id">
                 <h2>
@@ -133,7 +183,7 @@
                   <input x-show="editing" type="text" x-model="performance.tuneName" />
                 </h2>
                 <select x-show="editing" @change="changeTune(pageState.data.session.id, performance.id, $event.target.value)">
-                  <template x-for="t in tunes">
+                  <template x-for="t in data.tunes">
                     <option :value="t.id" x-text="t.name" :selected="t.id == performance.tuneId"></option>
                   </template>
                 </select>

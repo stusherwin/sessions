@@ -1,6 +1,6 @@
 import Alpine from 'alpinejs'
 import persist from '@alpinejs/persist'
-import '../scss/styles.scss'
+import '../css/styles.css'
 import iconsRaw from 'bootstrap-icons/bootstrap-icons.svg?raw'
 import App from './app.ts'
 import type { WaveformData } from './waveform-manager.ts'

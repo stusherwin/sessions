@@ -51,6 +51,8 @@ export class RegionManager {
         region.element?.part.add('sx-locked-right')
       }
     }
+
+    log('initialStartTime: ' + this.initialStartTime)()
     
     const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
 
@@ -384,15 +386,7 @@ export class RegionManager {
     var oldCurrent = this.performances.getCurrent()
     this.performances.in(region.id)
     var current = this.performances.getCurrent()
-    if(oldCurrent?.id !== current?.id) {
-      dispatch('sx:current-performance-changed', { 
-        sessionId: this.sessionId, 
-        performanceId: current?.id,
-        startTime: current?.startTime,
-        endTime: current?.endTime,
-        forced: false
-      })
-    }
+    
 
     for(var performance of this.performances) {
       var r = this.findRegion(performance.id)
@@ -401,6 +395,16 @@ export class RegionManager {
       } else {
         r?.element?.part.remove('sx-current')
       }
+    }
+
+    if(oldCurrent?.id !== current?.id) {
+      dispatch('sx:current-performance-changed', { 
+        sessionId: this.sessionId, 
+        performanceId: current?.id,
+        startTime: current?.startTime,
+        endTime: current?.endTime,
+        forced: false
+      })
     }
   }
 

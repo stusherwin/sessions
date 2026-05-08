@@ -43,6 +43,7 @@ export class WaveformManager {
 
     subscribe(this.ws.on('loading', this.onWsLoading.bind(this)))
     subscribe(this.ws.once('decode', this.onWsDecode.bind(this)))
+    subscribe(this.ws.once('redrawcomplete', this.onWsReady.bind(this)))
     subscribe(this.ws.on('play', this.onWsPlay.bind(this)))
     subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
     subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
@@ -77,6 +78,10 @@ export class WaveformManager {
     this.regionManager.init()
 
     dispatch('sx:waveform-ready', { id: this.sessionId })
+    log('initialStartTime: ' + this.regionManager.initialStartTime)()
+  }
+
+  private onWsReady() { log(arguments)()
     this.ws.setTime(this.regionManager.initialStartTime + 0.00000001)
   }
 
@@ -187,7 +192,7 @@ export class WaveformManager {
       cursorColor: 'red'
     })
 
-    this.container.classList.add('inverted')
+    // this.container.classList.add('inverted')
     var parent = this.ws.getWrapper().parentElement
     if(parent) {
       parent.style.overflowX = 'hidden'
@@ -202,7 +207,7 @@ export class WaveformManager {
       cursorColor: 'red'
     })
 
-    this.container.classList.remove('inverted')
+    // this.container.classList.remove('inverted')
     var parent = this.ws.getWrapper().parentElement
     if(parent) {
       parent.style.overflowX = 'auto'
@@ -220,6 +225,7 @@ export class WaveformManager {
     forced: boolean
   }) { log(arguments)()
     if(details.forced && details.startTime) {
+      log('setting time to: ' + (details.startTime + 0.00000001))
       this.ws.setTime(details.startTime + 0.00000001)
     }
   }

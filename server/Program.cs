@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,7 +52,7 @@ app.MapGet("/file/{filename}", async (string filename) =>
 })
 .WithName("GetFile");
 
-app.MapPost("/file", async (IFormFile upload) =>
+app.MapPost("/file", async (IFormFile upload, [FromForm] string sessionName) =>
 {
     try 
     {
@@ -61,7 +62,7 @@ app.MapPost("/file", async (IFormFile upload) =>
         var json = await File.ReadAllTextAsync(sessionsFilePath);
         var data = JsonConvert.DeserializeObject<Data>(json);
         var maxSessionId = data?.Sessions.Max(s => int.Parse(s.Id.Split('-')[1])) ?? 0;
-        var newSession = new Session($"session-{maxSessionId + 1}", upload.FileName.Split('.')[0], upload.FileName);
+        var newSession = new Session($"session-{maxSessionId + 1}", sessionName, upload.FileName);
         data?.Sessions.Add(newSession);
         await File.WriteAllTextAsync(sessionsFilePath, JsonConvert.SerializeObject(data));
         return Results.Ok(newSession);
