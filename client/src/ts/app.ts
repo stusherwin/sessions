@@ -1,4 +1,5 @@
 import type { AlpineComponent } from 'alpinejs'
+import { AppDataManager } from './data.ts'
 import type { Session, Tune, Performance } from './data.ts'
 import { log } from './common.ts'
 
@@ -11,12 +12,6 @@ interface Waveform {
   currentPerformance: string | undefined
 }
 
-interface AppData {
-  sessions: Session[]
-  tunes: Tune[]
-  performances: Performance[]
-}
-
 type PageState = { page: 'sessions' } 
                | { page: 'tunes' } 
                | { page: 'session', data: Waveform } 
@@ -24,13 +19,8 @@ type PageState = { page: 'sessions' }
 
 interface App {
   initialised: boolean
-  loaded: boolean
-  data: AppData
+  data: AppDataManager
   pageState: PageState
-  loading: boolean
-  saving: boolean
-  uploading: boolean
-  error: boolean
   playing: boolean
   editing: boolean
   nextTuneId: number
@@ -39,9 +29,6 @@ interface App {
   newSessionName: string | undefined
 
   init: () => void
-  findSession: (id: string) => Session
-  findTune: (id: string) => Tune
-  findPerformance: (id: string) => Performance
   loadSession: (sessionId: string, sessionName: string) => void
   loadTune: (tuneId: string) => void
   loadSessions: () => void
@@ -59,8 +46,6 @@ interface App {
   toggleEditing: () => void
   changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
   uploadFile: (form: HTMLFormElement) => void
-  saveData: () => void
-  saveDataDebounced: (() => void) | undefined,
   onPerformanceCreating: (detail: {sessionId: string, startTime: number, endTime: number}) => void
   onPerformanceUpdating: (detail: {sessionId: string, performanceId: string, startTime: number, endTime: number}) => void
   onCurrentPerformanceChanged: (detail: {sessionId: string, performanceId: string | undefined}) => void
@@ -68,17 +53,8 @@ interface App {
 
 const App = defineComponent<unknown, App>(() => ({
   initialised: false,
-  loaded: false,
-  data: { 
-    sessions: [], 
-    tunes: [], 
-    performances: []
-  }, 
+  data: new AppDataManager, 
   pageState: { page: 'sessions' } as PageState,
-  loading: true,
-  saving: false,
-  uploading: false,
-  error: false,
   playing: false,
   editing: false,
   nextTuneId: 0,
@@ -88,71 +64,7 @@ const App = defineComponent<unknown, App>(() => ({
 
   init() { log(arguments)()
     this.initialised = true
-    window.fetch(new Request("http://localhost:5110/sessions"))
-      .then((response) => {
-        if(!response.ok) { 
-            throw new Error('JSON file not found');
-        }
-
-        return response.json() as Promise<AppData>
-      })
-      .then((data : AppData) => {
-        log(data)()
-        this.data.sessions = data.sessions
-        this.data.tunes = data.tunes
-        this.data.performances = data.performances
-
-        var maxTuneId = 0
-        for(var tune of this.data.tunes) {
-          var id = parseInt(tune.id.split('-')[1])
-          if(id > maxTuneId) {
-            maxTuneId = id
-          }
-        }
-        this.nextTuneId = maxTuneId + 1
-
-        var maxPerfId = 0
-        for(var perf of this.data.performances) {
-          var id = parseInt(perf.id.split('-')[1])
-          if(id > maxPerfId) {
-            maxPerfId = id
-          }
-        }
-        this.nextPerformanceId = maxPerfId + 1
-        this.error = false
-        this.loaded = true
-      })
-      .catch(err => {
-        console.error(err)
-        this.error = true
-      })
-      .finally(() => {
-        this.loading = false
-      })
-  },
-
-  findSession(id: string): Session {
-    var session = this.data.sessions.find(s => s.id == id)
-    if(!session) {
-      throw new Error(`Session not found: ${id}`)
-    }
-    return session
-  },
-
-  findTune(id: string): Tune {
-    var tune = this.data.tunes.find(s => s.id == id)
-    if(!tune) {
-      throw new Error(`Tune not found: ${id}`)
-    }
-    return tune
-  },
-
-  findPerformance(id: string): Performance {
-    var performance = this.data.performances.find(s => s.id == id)
-    if(!performance) {
-      throw new Error(`Performance not found: ${id}`)
-    }
-    return performance
+    this.data.load()
   },
 
   loadSession(sessionId: string, performanceId: string | undefined = undefined) { log(arguments)()
@@ -160,7 +72,7 @@ const App = defineComponent<unknown, App>(() => ({
       this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
     }
 
-    const session = this.findSession(sessionId)
+    const session = this.data.findSession(sessionId)
 
     this.pageState = {
       page: 'session',
@@ -171,7 +83,6 @@ const App = defineComponent<unknown, App>(() => ({
         currentPerformance: undefined
       }
     }
-    // this.editing = false
 
     var performances = this.data.performances.filter(p => p.sessionId == sessionId)
     this.$dispatch('sx:waveform-loading', { session: session, performances, performanceId })
@@ -182,14 +93,13 @@ const App = defineComponent<unknown, App>(() => ({
       this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
     }
 
-    var tune = this.findTune(tuneId)
+    var tune = this.data.findTune(tuneId)
     log(tune)()
 
     this.pageState = {
       page: 'tune',
       data: tune
     }
-    // this.editing = false
   },
 
   loadSessions() { log(arguments)()
@@ -200,7 +110,6 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'sessions'
     }
-    // this.editing = false
   },
 
   loadTunes() { log(arguments)()
@@ -211,7 +120,6 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'tunes'
     }
-    // this.editing = false
   },
 
   playFromStart() { log(arguments)()
@@ -260,8 +168,8 @@ const App = defineComponent<unknown, App>(() => ({
       return
     }
 
-    var performance = this.findPerformance(performanceId)
-    var tune = this.findTune(performance.tuneId)
+    var performance = this.data.findPerformance(performanceId)
+    var tune = this.data.findTune(performance.tuneId)
 
     performance.tuneName = tuneName
     tune.name = tuneName
@@ -269,13 +177,24 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:performance-updated', performance)
   },
 
+  updateSessionName(sessionId: string, sessionName: string) { log(arguments)()
+    if(this.pageState.page != 'sessions') {
+      return
+    }
+
+    for(var performance of this.data.performancesForSession(sessionId)) {
+      performance.sessionName = sessionName
+      this.$dispatch('sx:performance-updated', performance)
+    }
+  },
+
   deletePerformance(sessionId: string, performanceId: string) { log(arguments)()
     if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
       return
     }
 
-    var performance = this.findPerformance(performanceId)
-    var tune = this.findTune(performance.tuneId)
+    var performance = this.data.findPerformance(performanceId)
+    var tune = this.data.findTune(performance.tuneId)
 
     var tuneId = tune.id
     this.pageState.data.currentPerformance = undefined
@@ -292,9 +211,9 @@ const App = defineComponent<unknown, App>(() => ({
       return
     }
 
-    var performance = this.findPerformance(performanceId)
-    var tune = this.findTune(performance.tuneId)
-    var newTune = this.findTune(newTuneId)
+    var performance = this.data.findPerformance(performanceId)
+    var tune = this.data.findTune(performance.tuneId)
+    var newTune = this.data.findTune(newTuneId)
 
     var tuneId = tune.id
     performance.tuneId = newTuneId
@@ -307,80 +226,23 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   uploadFile(form: HTMLFormElement) { log(arguments)()
-    this.uploading = true
-    var data = new FormData()
+    var formData = new FormData()
     
     var inputs = form.getElementsByTagName('input')
     
     for(var input of inputs) {
       if(input.files && input.files.length) {
-        data.append(input.name, input.files[0])
+        formData.append(input.name, input.files[0])
       } else {
-        data.append(input.name, input.value)
+        formData.append(input.name, input.value)
       }
     }
 
-    window.fetch("http://localhost:5110/file", { method: 'POST', body: data })
-      .then(async (response) => {
-        console.log(response)
-
-        if(!response.ok) {
-          var error = await response.text();
-          throw new Error(error);
-        }
-
-        return response.json() as Promise<Session>
-      })
-      .then((session : Session) => {
-        this.data.sessions.push(session)
-        this.error = false
-      })
-      .catch(err => {
-        console.error(err)
-        this.error = true
-      })
-      .finally(() => {
+    this.data.upload(formData)
+      .then(() => {
         this.fileUpload = undefined
         this.newSessionName = undefined
-        this.uploading = false
       })
-  },
-
-  saveDataDebounced: undefined,
-
-  saveData() {
-    if(!this.loaded) {
-      return
-    }
-
-    if(!this.saveDataDebounced) {
-      this.saveDataDebounced = Alpine.debounce(() => {
-        this.saving = true
-
-        window.fetch("http://localhost:5110/sessions", { method: 'POST', body: JSON.stringify(this.data), headers: {
-          "Content-Type": "application/json",
-        }})
-          .then(async (response) => {
-            if(!response.ok) { 
-              var error = await response.text();
-              throw new Error(error);
-            }
-            this.error = false
-          })
-          .catch(err => {
-            console.error(err)
-            this.error = true
-          })
-          .finally(() => {
-            setTimeout(() => {
-              this.saving = false
-            }, 1000)
-            this.saveDataDebounced = undefined
-          })
-      }, 500)
-    }
-
-    this.saveDataDebounced()
   },
 
   onPerformanceCreating(detail: {sessionId: string, startTime: number, endTime: number}) { log(arguments)()
@@ -392,7 +254,7 @@ const App = defineComponent<unknown, App>(() => ({
       return
     }
 
-    var session = this.findSession(sessionId)
+    var session = this.data.findSession(sessionId)
 
     var tuneId = 'tune-' + this.nextTuneId
     var tuneName = 'Tune ' + this.nextTuneId
@@ -432,7 +294,7 @@ const App = defineComponent<unknown, App>(() => ({
       return
     }
 
-    var performance = this.findPerformance(performanceId)
+    var performance = this.data.findPerformance(performanceId)
 
     performance.startTime = startTime
     performance.endTime = endTime
