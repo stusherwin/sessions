@@ -32,10 +32,13 @@
   }
 
   button, .upload-label {
-    @apply bg-gray-300 py-1 px-2 border rounded border-gray-400 cursor-pointer text-black;
+    @apply flex bg-gray-300 py-1 px-2 border rounded border-gray-400 cursor-pointer text-black;
 
-    &.icon-btn {
-      /* @apply w-4 h-4 */
+    &.icon-btn-text {
+      svg {
+        @apply mr-2 relative;
+        top: 4px;
+      }
     }
 
     &:hover {
@@ -43,7 +46,19 @@
     }
   }
 
-  input:not([type="file"]), select {
+  .upload-label {
+    @apply inline-flex
+  }
+
+  .button-group {
+    @apply flex;
+
+    button {
+      @apply mr-1
+    }
+  }
+
+  input:not([type="file"]), select, textarea {
     @apply border rounded border-gray-400 py-1 px-2;
   }
 
@@ -52,19 +67,20 @@
   }
 
   h1 {
-    @apply text-2xl font-bold mt-2 mb-4;
+    @apply text-2xl mt-2 mb-4 font-bold;
   }
 
   h2 {
-    @apply text-lg font-bold mt-2 mb-2;
+    @apply text-lg mt-2 mb-2;
   }
 
   h3 {
-    @apply font-bold mt-2 mb-2;
+    @apply mt-2 mb-2;
   }
 
   .item-list-row {
-    @apply col-span-full grid grid-cols-subgrid relative after:absolute after:border-b after:border-gray-400 after:left-0 after:right-0 after:-bottom-2 last:after:hidden
+    @apply col-span-full grid grid-cols-subgrid relative 
+    /*after:absolute after:border-b after:border-gray-400 after:left-0 after:right-0 after:-bottom-2 last:after:hidden*/
   }
 
   .editing {  
@@ -82,8 +98,8 @@
       }
     }
 
-    input:not([type="file"]), select {
-      @apply border border-white bg-gray-800 text-white;
+    input:not([type="file"]), select, textarea {
+      @apply border border-white bg-black text-white;
     }
 
     .item-list-row {
@@ -93,7 +109,6 @@
 }
 
 .waveform {
-  margin: 20px 0;
   padding: 10px 0;
 }
 
@@ -101,43 +116,8 @@
   margin-top: 30px;
 }
 
-.inverted {
-  background: black;
-  color: white;
-}
-
 .red {
   background: red;
-}
-
-button {
-  display: flex;
-
-  &[type="submit"] {
-    svg {
-      margin-right: 5px;
-      position: relative;
-      top: 3px;
-    }
-  }
-}
-
-.button-group {
-  display: flex;
-
-  button {
-    margin-right: 5px;
-  }
-}
-
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 #root, #__next {
@@ -258,4 +238,8 @@ button {
 ::part(region sx-editable)::before,
 ::part(region sx-editable)::after {
   border-color: white;
+}
+
+::part(region-content sx-current) {
+  font-weight: bold;
 }

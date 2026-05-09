@@ -116,6 +116,7 @@ export class RegionManager {
       el.part.add('sx-editable')
       for(var j = 0; j < el.children.length; j++) {
         el.children[j].part.add('sx-editable')
+        el.children[j].part.add('sx-current')
       }
     }
 
@@ -148,18 +149,26 @@ export class RegionManager {
 
     region.setOptions({ id : performance.id, content: performance.tuneName })
     var el = region.element
-    el?.part.add('sx-tune')
-    if(this.editing) {
-      el?.part.add('sx-editable')
-    }
-    if(p.current) {
-      el?.part.add('sx-current')
-    }
-    if(p.prevNeighbour && p.prevNeighbour.locked) {
-      el?.part.add('sx-locked-left')
-    }
-    if(p.nextNeighbour && p.nextNeighbour.locked) {
-      el?.part.add('sx-locked-right')
+    if(el) {
+      el.part.add('sx-tune')
+      if(this.editing) {
+        el.part.add('sx-editable')
+        for(var j = 0; j < el.children.length; j++) {
+          el.children[j].part.add('sx-editable')
+        }
+      }
+      if(p.current) {
+        el.part.add('sx-current')
+        for(var j = 0; j < el.children.length; j++) {
+          el.children[j].part.add('sx-current')
+        }
+      }
+      if(p.prevNeighbour && p.prevNeighbour.locked) {
+        el.part.add('sx-locked-left')
+      }
+      if(p.nextNeighbour && p.nextNeighbour.locked) {
+        el.part.add('sx-locked-right')
+      }
     }
     p.update(performance.tuneId, performance.tuneName, performance.startTime, performance.endTime)
   }
@@ -348,8 +357,14 @@ export class RegionManager {
       }
       if(performance.current) {
         el.part.add('sx-current')
+        for(var j = 0; j < el.children.length; j++) {
+          el.children[j].part.add('sx-current')
+        }
       } else {
         el.part.remove('sx-current')
+        for(var j = 0; j < el.children.length; j++) {
+          el.children[j].part.remove('sx-current')
+        }
       }
     }
 
@@ -390,10 +405,19 @@ export class RegionManager {
 
     for(var performance of this.performances) {
       var r = this.findRegion(performance.id)
-      if(performance.current) {
-        r?.element?.part.add('sx-current')
-      } else {
-        r?.element?.part.remove('sx-current')
+      var el = r?.element
+      if(el) {
+        if(performance.current) {
+          el.part.add('sx-current')
+          for(var j = 0; j < el.children.length; j++) {
+            el.children[j].part.add('sx-current')
+          }
+        } else {
+          el.part.remove('sx-current')
+          for(var j = 0; j < el.children.length; j++) {
+            el.children[j].part.remove('sx-current')
+          }
+        }
       }
     }
 
@@ -424,10 +448,19 @@ export class RegionManager {
 
     for(var performance of this.performances) {
       var r = this.findRegion(performance.id)
-      if(performance.current) {
-        r?.element?.part.add('sx-current')
-      } else {
-        r?.element?.part.remove('sx-current')
+      var el = r?.element
+      if(el) {
+        if(performance.current) {
+          el.part.add('sx-current')
+          for(var j = 0; j < el.children.length; j++) {
+            el.children[j].part.add('sx-current')
+          }
+        } else {
+          el.part.remove('sx-current')
+          for(var j = 0; j < el.children.length; j++) {
+            el.children[j].part.remove('sx-current')
+          }
+        }
       }
     }
   }

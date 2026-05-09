@@ -16,6 +16,7 @@ type PageState = { page: 'sessions' }
                | { page: 'tunes' } 
                | { page: 'session', data: Waveform } 
                | { page: 'tune', data: Tune }
+               | { page: 'newSession' }
 
 interface App {
   initialised: boolean
@@ -31,6 +32,7 @@ interface App {
   loadTune: (tuneId: string) => void
   loadSessions: () => void
   loadTunes: () => void
+  loadNewSession: () => void
   formatTime: (time: number) => string
   updateTuneName: (sessionId: string, tuneId: string, name: string) => void
   deletePerformance: (performanceId: string) => void
@@ -123,20 +125,35 @@ const App = defineComponent<unknown, App>(() => ({
     this.editing = false
   },
 
-  formatTime(time: number) {
+  loadNewSession() { log(arguments)()
+    if(this.pageState.page == 'session') {
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
+    }
+
+    this.pageState = {
+      page: 'newSession'
+    }
+    this.editing = false
+  },
+
+  formatTime(time: number, includeMilliseconds: boolean = false) {
     const h = 60.0 * 60.0
     const m = 60.0
+    const pad = (n: any) => n.toString().padStart(2, '0')
  
     var hours = time / h
-    var hoursPart = Math.floor(hours)
+    var hoursPart = pad(Math.floor(hours))
+
     var minutes = (time % h) / m
-    var minutesPart = Math.floor(minutes)
+    var minutesPart = pad(Math.floor(minutes))
+
     var seconds = (time % h) % m
-    var secondsPart = Math.round(seconds)
 
-    const pad = (n: number) => n.toString().padStart(2, '0')
+    var secondsPart = includeMilliseconds
+      ? pad(seconds.toFixed(3))
+      : pad(Math.round(seconds))
 
-    return `${pad(hoursPart)}:${pad(minutesPart)}:${pad(secondsPart)}`
+    return `${hoursPart}:${minutesPart}:${secondsPart}`
   },
 
   playFromStart() { log(arguments)()
@@ -269,6 +286,7 @@ const App = defineComponent<unknown, App>(() => ({
       .then(() => {
         this.fileUpload = undefined
         this.newSessionName = undefined
+        this.loadSessions()
       })
   },
 
