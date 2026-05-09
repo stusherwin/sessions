@@ -1,6 +1,6 @@
 import type { AlpineComponent } from 'alpinejs'
 import { AppDataManager } from './data.ts'
-import type { Session, Tune, Performance } from './data.ts'
+import type { Session, Tune } from './data.ts'
 import { log } from './common.ts'
 
 export const defineComponent = <P, T>(fn: (params: P) => AlpineComponent<T>) => fn
@@ -23,8 +23,6 @@ interface App {
   pageState: PageState
   playing: boolean
   editing: boolean
-  nextTuneId: number
-  nextPerformanceId: number
   fileUpload: string | undefined
   newSessionName: string | undefined
 
@@ -33,8 +31,9 @@ interface App {
   loadTune: (tuneId: string) => void
   loadSessions: () => void
   loadTunes: () => void
+  formatTime: (time: number) => string
   updateTuneName: (sessionId: string, tuneId: string, name: string) => void
-  deletePerformance: (sessionId: string, tuneId: string) => void
+  deletePerformance: (performanceId: string) => void
   playFromStart: () => void
   skipToStart: () => void
   skipToEnd: () => void
@@ -57,8 +56,6 @@ const App = defineComponent<unknown, App>(() => ({
   pageState: { page: 'sessions' } as PageState,
   playing: false,
   editing: false,
-  nextTuneId: 0,
-  nextPerformanceId: 0,
   fileUpload: undefined,
   newSessionName: undefined,
 
@@ -83,6 +80,7 @@ const App = defineComponent<unknown, App>(() => ({
         currentPerformance: undefined
       }
     }
+    this.editing = false
 
     var performances = this.data.performances.filter(p => p.sessionId == sessionId)
     this.$dispatch('sx:waveform-loading', { session: session, performances, performanceId })
@@ -100,6 +98,7 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'tune',
       data: tune
     }
+    this.editing = false
   },
 
   loadSessions() { log(arguments)()
@@ -110,6 +109,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'sessions'
     }
+    this.editing = false
   },
 
   loadTunes() { log(arguments)()
@@ -120,6 +120,23 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'tunes'
     }
+    this.editing = false
+  },
+
+  formatTime(time: number) {
+    const h = 60.0 * 60.0
+    const m = 60.0
+ 
+    var hours = time / h
+    var hoursPart = Math.floor(hours)
+    var minutes = (time % h) / m
+    var minutesPart = Math.floor(minutes)
+    var seconds = (time % h) % m
+    var secondsPart = Math.round(seconds)
+
+    const pad = (n: number) => n.toString().padStart(2, '0')
+
+    return `${pad(hoursPart)}:${pad(minutesPart)}:${pad(secondsPart)}`
   },
 
   playFromStart() { log(arguments)()
@@ -163,7 +180,7 @@ const App = defineComponent<unknown, App>(() => ({
     }
   },
 
-  updateTuneName(sessionId: string, performanceId: string, tuneName: string) { log(arguments)()
+  updatePerformanceTuneName(sessionId: string, performanceId: string, tuneName: string) { log(arguments)()
     if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
       return
     }
@@ -177,6 +194,17 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:performance-updated', performance)
   },
 
+  updateTuneName(tuneId: string, tuneName: string) { log(arguments)()
+    if(this.pageState.page != 'tunes') {
+      return
+    }
+
+    for(var performance of this.data.performancesForTune(tuneId)) {
+      performance.tuneName = tuneName
+      this.$dispatch('sx:performance-updated', performance)
+    }
+  },
+
   updateSessionName(sessionId: string, sessionName: string) { log(arguments)()
     if(this.pageState.page != 'sessions') {
       return
@@ -188,22 +216,30 @@ const App = defineComponent<unknown, App>(() => ({
     }
   },
 
-  deletePerformance(sessionId: string, performanceId: string) { log(arguments)()
-    if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
-      return
-    }
-
-    var performance = this.data.findPerformance(performanceId)
-    var tune = this.data.findTune(performance.tuneId)
-
-    var tuneId = tune.id
-    this.pageState.data.currentPerformance = undefined
-    this.data.performances = this.data.performances.filter(p => p.id != performanceId)
-    if(this.data.performances.filter(p => p.tuneId == tuneId).length == 0) {
-      this.data.tunes = this.data.tunes.filter(t => t.id != tuneId)
+  deletePerformance(performanceId: string) { log(arguments)()
+    this.data.deletePerformance(performanceId)
+    
+    if(this.pageState.page == 'session') {
+      this.pageState.data.currentPerformance = undefined
     }
 
     this.$dispatch('sx:performance-deleted', performance)
+  },
+
+  deleteSession(sessionId: string) { log(arguments)()
+    if(this.pageState.page != 'sessions') {
+      return
+    }
+
+    this.data.deleteSession(sessionId)
+  },
+
+  deleteTune(tuneId: string) { log(arguments)()
+    if(this.pageState.page != 'tunes') {
+      return
+    }
+
+    this.data.deleteTune(tuneId)
   },
 
   changeTune(sessionId: string, performanceId: string, newTuneId: string) { log(arguments)()
@@ -211,16 +247,7 @@ const App = defineComponent<unknown, App>(() => ({
       return
     }
 
-    var performance = this.data.findPerformance(performanceId)
-    var tune = this.data.findTune(performance.tuneId)
-    var newTune = this.data.findTune(newTuneId)
-
-    var tuneId = tune.id
-    performance.tuneId = newTuneId
-    performance.tuneName = newTune.name
-    if(this.data.performances.filter(p => p.tuneId == tuneId).length == 0) {
-      this.data.tunes = this.data.tunes.filter(t => t.id != tuneId)
-    }
+    this.data.changeTune(performanceId, newTuneId)
 
     this.$dispatch('sx:performance-updated', performance)
   },
@@ -254,32 +281,7 @@ const App = defineComponent<unknown, App>(() => ({
       return
     }
 
-    var session = this.data.findSession(sessionId)
-
-    var tuneId = 'tune-' + this.nextTuneId
-    var tuneName = 'Tune ' + this.nextTuneId
-    this.nextTuneId++
-    
-    var performanceId = 'perf-' + this.nextPerformanceId
-    this.nextPerformanceId++
-
-    var performance : Performance = {
-      id: performanceId,
-      tuneId: tuneId,
-      tuneName,
-      sessionId,
-      sessionName: session.name || '',
-      startTime,
-      endTime
-    }
-
-    var tune : Tune = {
-      id: tuneId,
-      name: tuneName
-    }
-
-    this.data.tunes.push(tune)
-    this.data.performances.push(performance)
+    var performance = this.data.createPerformance(sessionId, startTime, endTime)
 
     this.$dispatch('sx:performance-created', performance)
   },

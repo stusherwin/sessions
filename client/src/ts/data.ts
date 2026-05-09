@@ -117,6 +117,75 @@ export class AppDataManager implements AppData {
     return this.performances.filter(p => p.tuneId == tuneId)
   }
 
+  createPerformance(sessionId: string, startTime: number, endTime: number) {
+    var session = this.findSession(sessionId)
+
+    var tuneId = 'tune-' + this.nextTuneId
+    var tuneName = 'Tune ' + this.nextTuneId
+    this.nextTuneId++
+    
+    var performanceId = 'perf-' + this.nextPerformanceId
+    this.nextPerformanceId++
+
+    var performance : Performance = {
+      id: performanceId,
+      tuneId: tuneId,
+      tuneName,
+      sessionId,
+      sessionName: session.name || '',
+      startTime,
+      endTime
+    }
+
+    var tune : Tune = {
+      id: tuneId,
+      name: tuneName
+    }
+
+    this.tunes.push(tune)
+    this.performances.push(performance)
+
+    return performance
+  }
+
+  deletePerformance(id: string) {
+    var performance = this.findPerformance(id)
+    var tune = this.findTune(performance.tuneId)
+
+    var tuneId = tune.id
+    this.performances = this.performances.filter(p => p.id != id)
+    if(this.performances.filter(p => p.tuneId == tuneId).length == 0) {
+      this.tunes = this.tunes.filter(t => t.id != tuneId)
+    }
+  }
+
+  deleteSession(id: string) {
+    if(this.performancesForSession(id).length) {
+      return
+    }
+    this.sessions = this.sessions.filter(s => s.id != id)
+  }
+
+  deleteTune(id: string) {
+    if(this.performancesForTune(id).length) {
+      return
+    }
+    this.tunes = this.tunes.filter(t => t.id != id)
+  }
+
+  changeTune(performanceId: string, newTuneId: string) {
+    var performance = this.findPerformance(performanceId)
+    var tune = this.findTune(performance.tuneId)
+    var newTune = this.findTune(newTuneId)
+
+    var tuneId = tune.id
+    performance.tuneId = newTuneId
+    performance.tuneName = newTune.name
+    if(this.performances.filter(p => p.tuneId == tuneId).length == 0) {
+      this.tunes = this.tunes.filter(t => t.id != tuneId)
+    }
+  }
+
   save() { log(arguments)()
     if(!this.loaded) {
       return

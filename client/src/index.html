@@ -16,6 +16,7 @@
   <div x-data="app" 
        x-init="$watch('data.sessions', () => data.save()); $watch('data.tunes', () => data.save()); $watch('data.performances', () => data.save())"
        class="uninitialised p-4 min-h-screen" :class="{ 'uninitialised': !initialised, 'editing': editing }">
+
     <div class="flex items-center">
       <a class="block mr-2 leading-none" href="#" @click="loadSessions()">Sessions</a> 
       <span class="block separator mr-2 leading-none">|</span>
@@ -35,60 +36,78 @@
         </svg>
       </button>
     </div>
+
     <template x-if="data.loaded && pageState.page == 'sessions'">
       <div>
         <h1>Sessions</h1>
 
-        <div>
-          <ul>
-            <template x-for="session in data.sessions">
-              <li x-data x-init="$watch('session.name', name => updateSessionName(session.id, name))"
-                  class="border-b border-gray-300 py-2">
-                <a x-show="!editing" href="#" x-text="session.name" @click="loadSession(session.id)"></a>
-                <div x-show="editing" class="flex">
-                  <input type="text" class="w-full" x-model="session.name" />
-                </div>
-                <ul>
-                <template x-for="performance in data.performancesForSession(session.id)">
-                  <li><a href="#" x-text="performance.tuneName" @click="loadSession(session.id, performance.id)"></a></li>
-                </template>
-                </ul>
-              </li>
-            </template>
-          </ul>
-          <template x-if="editing">
-            <form @submit.prevent="uploadFile($event.target)" enctype="multipart/form-data">
-              <h3>New session</h3>
-
-              <div class="mt-4">
-                <label class="block">Name</label>
-                <input type="text" name="sessionName" class="w-full" x-model="newSessionName" />
-              </div>
-
-              <div class="mt-4">
-                <label class="upload-label" for="upload-file">Select audio file</label>
-
-                <input id="upload-file" 
-                       name="upload"
-                       x-model="fileUpload"
-                       type="file" 
-                       accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4"
-                       @change="if(!newSessionName) { newSessionName = $event.target.files[0].name.split('.')[0]; }" />
-              </div>
-              <div x-show="fileUpload" class="mt-2">
-                Selected file: <span x-text="(fileUpload || '').replace('C:\\fakepath\\', '')"></span>
-              </div>
-              <div class="mt-4">
-                <button type="submit" :disabled="data.saving">
+        <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-4 gap-x-2">
+          <template x-for="session in data.sessions">
+            <li x-data x-init="$watch('session.name', name => updateSessionName(session.id, name))"
+                class="item-list-row">
+              <a x-show="!editing" href="#" class="col-span-2 block py-1 border border-transparent" x-text="session.name" @click="loadSession(session.id)"></a>
+              <input type="text" x-show="editing" class="col-span-2 w-full" x-model="session.name" />
+              
+              <div class="col-3" x-show="editing && !data.performancesForSession(session.id).length">
+                <button @click="deleteSession(session.id)">
                   <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#upload" />
+                    <use href="#trash-fill" />
                   </svg>
-                  Upload
                 </button>
               </div>
-            </form>
+              
+              <ul class="col-span-full grid grid-cols-subgrid">
+                <template x-for="performance in data.performancesForSession(session.id)">
+                  <li class="first-of-type:mt-2 last-of-type:mb-1 col-span-full grid grid-cols-subgrid">
+                    <a href="#" class="col-1" x-text="formatTime(performance.startTime)" @click="loadSession(performance.sessionId, performance.id)"></a>
+                    <span class="col-2" x-text="performance.tuneName"></span>
+                    <div class="col-3" x-show="editing">
+                      <button @click="deletePerformance(performance.id)">
+                        <svg class="bi" width="16" height="16" fill="currentColor">
+                          <use href="#trash-fill" />
+                        </svg>
+                      </button>
+                    </div>
+                  </li>
+                </template>
+              </ul>
+            </li>
           </template>
-        </div>
+        </ul>
+
+        <template x-if="editing">
+          <form @submit.prevent="uploadFile($event.target)" enctype="multipart/form-data">
+            <h3>New session</h3>
+
+            <div class="mt-4">
+              <label class="block">Name</label>
+              <input type="text" name="sessionName" class="w-full" x-model="newSessionName" />
+            </div>
+
+            <div class="mt-4">
+              <label class="upload-label" for="upload-file">Select audio file</label>
+
+              <input id="upload-file" 
+                      name="upload"
+                      x-model="fileUpload"
+                      type="file" 
+                      accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4"
+                      @change="if(!newSessionName) { newSessionName = $event.target.files[0].name.split('.')[0]; }" />
+            </div>
+            <div x-show="fileUpload" class="mt-2">
+              Selected file: <span x-text="(fileUpload || '').replace('C:\\fakepath\\', '')"></span>
+            </div>
+            <div class="mt-4">
+              <button type="submit" :disabled="data.saving">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#upload" />
+                </svg>
+                Upload
+              </button>
+            </div>
+          </form>
+        </template>
+        
       </div>
     </template>
 
@@ -96,17 +115,38 @@
       <div>
         <h1>Tunes</h1>
 
-        <ul>
-        <template x-for="tune in data.tunes">
-          <li>
-            <a href="#" x-text="tune.name" @click="loadTune(tune.id)"></a>
-            <ul>
-            <template x-for="performance in data.performancesForTune(tune.id)">
-              <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.id)"></a></li>
-            </template>
-            </ul>
-          </li>
-        </template>
+        <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-4 gap-x-2">
+          <template x-for="tune in data.tunes">
+            <li x-data x-init="$watch('tune.name', name => updateTuneName(tune.id, name))"
+                class="item-list-row">
+              <a x-show="!editing" href="#" class="col-span-2 block py-1 border border-transparent" x-text="tune.name" @click="loadTune(tune.id)"></a>
+              <input type="text" x-show="editing" class="col-span-2 w-full" x-model="tune.name" />
+              
+              <div class="col-3">
+                <button x-show="editing && !data.performancesForTune(tune.id).length" @click="deleteTune(tune.id)">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#trash-fill" />
+                  </svg>
+                </button>
+              </div>
+
+              <ul class="col-span-full grid grid-cols-subgrid">
+                <template x-for="performance in data.performancesForTune(tune.id)">
+                  <li class="first-of-type:mt-2 last-of-type:mb-1 col-span-full grid grid-cols-subgrid">
+                    <span class="col-1" x-text="performance.sessionName"></span>
+                    <a href="#" class="col-2" x-text="formatTime(performance.startTime)" @click="loadSession(performance.sessionId, performance.id)"></a>
+                    <div class="col-3" x-show="editing">
+                      <button @click="deletePerformance(performance.id)">
+                        <svg class="bi" width="16" height="16" fill="currentColor">
+                          <use href="#trash-fill" />
+                        </svg>
+                      </button>
+                    </div>
+                  </li>
+                </template>
+              </ul>
+            </li>
+          </template>
         </ul>
       </div>
     </template>
@@ -115,7 +155,6 @@
       <div>
         <h1 x-text="pageState.data.name"></h1>
         <div x-show="pageState.data">Some tune here</div>
-        <div x-show="!pageState.data">No tune here</div>
         <ul>
           <template x-for="performance in data.performancesForTune(pageState.data.id)">
             <li><a href="#" x-text="performance.sessionName" @click="loadSession(performance.sessionId, performance.id)"></a></li>
@@ -178,7 +217,7 @@
           </div>
 
           <template x-for="performance in data.performancesForSession(pageState.data.session.id)">
-            <div x-data x-init="$watch('performance.tuneName', name => updateTuneName(pageState.data.session.id, performance.id, name))">
+            <div x-data x-init="$watch('performance.tuneName', name => updatePerformanceTuneName(pageState.data.session.id, performance.id, name))">
               <div x-show="pageState.data.currentPerformance == performance.id">
                 <h2>
                   <span x-show="!editing" x-text="performance.tuneName"></span>
@@ -189,7 +228,7 @@
                     <option :value="t.id" x-text="t.name" :selected="t.id == performance.tuneId"></option>
                   </template>
                 </select>
-                <button x-show="editing" @click="deletePerformance(pageState.data.session.id, performance.id)">
+                <button x-show="editing" @click="deletePerformance(performance.id)">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#trash-fill" />
                   </svg>
@@ -198,9 +237,11 @@
               </div>
             </div>
           </template>
+
         </div>
       </div>
     </template>
+
   </div>
   <div id="all" hidden ></div>
   <script type="module" src="./ts/main.ts"></script>

@@ -34,12 +34,16 @@
   button, .upload-label {
     @apply bg-gray-300 py-1 px-2 border rounded border-gray-400 cursor-pointer text-black;
 
+    &.icon-btn {
+      /* @apply w-4 h-4 */
+    }
+
     &:hover {
       @apply bg-black border-black text-white;
     }
   }
 
-  input:not([type="file"]) {
+  input:not([type="file"]), select {
     @apply border rounded border-gray-400 py-1 px-2;
   }
 
@@ -48,30 +52,26 @@
   }
 
   h1 {
-    @apply text-2xl font-bold mt-2;
+    @apply text-2xl font-bold mt-2 mb-4;
   }
 
   h2 {
-    @apply text-lg font-bold mt-2;
+    @apply text-lg font-bold mt-2 mb-2;
   }
 
   h3 {
-    @apply font-bold mt-2;
+    @apply font-bold mt-2 mb-2;
   }
 
-  li li {
-    @apply ml-4;
+  .item-list-row {
+    @apply col-span-full grid grid-cols-subgrid relative after:absolute after:border-b after:border-gray-400 after:left-0 after:right-0 after:-bottom-2 last:after:hidden
   }
 
-  .editing {
-    @apply bg-black;
+  .editing {  
+    @apply bg-black text-white;
 
     a {
       @apply text-red-300;
-    }
-
-    h1, h2, h3, h4, p, label, input, .separator, .waveform, .status {
-      @apply text-white;
     }
 
     button, .upload-label {
@@ -82,8 +82,12 @@
       }
     }
 
-    input:not([type="file"]) {
+    input:not([type="file"]), select {
       @apply border border-white bg-gray-800 text-white;
+    }
+
+    .item-list-row {
+      @apply after:border-gray-600
     }
   }
 }
