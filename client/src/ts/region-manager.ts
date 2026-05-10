@@ -16,7 +16,7 @@ export class RegionManager {
   private subscriptions: (() => void)[] = []
   private disableDragSelection : (() => void) | undefined = undefined
 
-  public initialStartTime: number = 0
+  public initialStartAndEndTime: { startTime: number, endTime: number } | undefined = undefined 
 
   constructor(
     sessionId: string, 
@@ -32,7 +32,7 @@ export class RegionManager {
   init() { log(arguments)()
     for(var performance of this.performances) {
       if(this.initialPerformanceId == performance.id) {
-        this.initialStartTime = performance.startTime
+        this.initialStartAndEndTime = { startTime: performance.startTime, endTime: performance.endTime }
       }
 
       var region = this.regions.addRegion({ 
@@ -52,8 +52,6 @@ export class RegionManager {
       }
     }
 
-    log('initialStartTime: ' + this.initialStartTime)()
-    
     const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
 
     subscribe(this.regions.on('region-initialized', this.onRegionInitialized.bind(this)))
@@ -76,18 +74,18 @@ export class RegionManager {
     this.subscriptions = [];
   }
 
-  getNextStartTime(time: number) : number | undefined { log(arguments)()
+  getNextStartAndEndTime(time: number) : { startTime: number, endTime: number } | undefined { log(arguments)()
     for(var performance of this.performances) {
       if(performance.startTime > time) {
-        return performance.startTime
+        return { startTime: performance.startTime, endTime: performance.endTime }
       }
     }
   }
 
-  getPreviousStartTime(time: number) : number | undefined { log(arguments)()
+  getPreviousStartAndEndTime(time: number) : { startTime: number, endTime: number } | undefined { log(arguments)()
     for(var performance of this.performances.reversed()) {
       if(performance.startTime < time - delta) {
-        return performance.startTime
+        return { startTime: performance.startTime, endTime: performance.endTime }
       }
     }
   }

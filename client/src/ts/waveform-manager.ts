@@ -78,11 +78,24 @@ export class WaveformManager {
     this.regionManager.init()
 
     dispatch('sx:waveform-ready', { id: this.sessionId })
-    log('initialStartTime: ' + this.regionManager.initialStartTime)()
   }
 
   private onWsReady() { log(arguments)()
-    this.ws.setTime(this.regionManager.initialStartTime + 0.00000001)
+    var span = this.regionManager.initialStartAndEndTime
+    if(span) {
+      log(span)()
+      this.ws.setTime(span.startTime + 0.00000001)
+      var duration = span.endTime - span.startTime
+
+      setTimeout(() => {
+        var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+        var targetLevel = width / duration / 3
+        this.zooming = true
+        clearTimeout(this.zoomTimeout)
+        this.ws.zoom(targetLevel)
+        this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+      })
+    }
   }
 
   private onWsPlay() { log(arguments)()
@@ -122,16 +135,16 @@ export class WaveformManager {
   }
 
   private onAppSkipBackward() { log(arguments)()
-    let startTime = this.regionManager.getPreviousStartTime(this.ws.getCurrentTime());
-    if(startTime) {
-      this.ws.setTime(startTime + 0.00000001);
+    let span = this.regionManager.getPreviousStartAndEndTime(this.ws.getCurrentTime());
+    if(span) {
+      this.ws.setTime(span.startTime + 0.00000001);
     }
   }
 
   private onAppSkipForward() { log(arguments)()
-    let startTime = this.regionManager.getNextStartTime(this.ws.getCurrentTime());
-    if(startTime) {
-      this.ws.setTime(startTime + 0.00000001);
+    let span = this.regionManager.getNextStartAndEndTime(this.ws.getCurrentTime());
+    if(span) {
+      this.ws.setTime(span.startTime + 0.00000001);
     }
   }
 
@@ -227,6 +240,42 @@ export class WaveformManager {
     if(details.forced && details.startTime) {
       log('setting time to: ' + (details.startTime + 0.00000001))
       this.ws.setTime(details.startTime + 0.00000001)
+
+      if(!details.endTime) {
+        return
+      }
+
+      var performanceDuration = details.endTime - details.startTime
+      var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+      var duration = this.ws.getDuration()
+      
+      var total = this.ws.getWrapper().scrollWidth
+      var targetLevel = total / performanceDuration
+      this.ws.zoom(targetLevel)
+
+      // var currentScroll = this.ws.getScroll()
+      // var total = this.ws.getWrapper().scrollWidth
+      // var mid = currentScroll + this.ws.getWidth() / 2
+      // var percent = (mid / total)
+      // var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+
+      // var duration = this.ws.getDuration()
+      // var zoomedOut = width / duration
+      // var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
+
+      // var targetLevel = Math.min(width, currentLevel * 2)
+      // this.zooming = true
+      // clearTimeout(this.zoomTimeout)
+      // this.ws.zoom(targetLevel)
+      // var newTotal = this.ws.getWrapper().scrollWidth
+      // var newMid = percent * newTotal
+      // var newScroll = newMid - this.ws.getWidth() / 2
+      // if(this.editing) {
+      //   this.scrollPosition = newScroll
+      // }
+      // this.ws.setScroll(newScroll)
+      // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+
     }
   }
 }
