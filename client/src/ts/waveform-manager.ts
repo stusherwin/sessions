@@ -33,7 +33,7 @@ export class WaveformManager {
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red',
-      url: 'http://localhost:5110/file/' + data.session.filename,
+      url: 'http://localhost:5110/api/file/' + data.session.filename,
       plugins: [regions],
       peaks: data.session.peaks,
       duration: data.session.duration

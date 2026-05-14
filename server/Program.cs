@@ -1,15 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Newtonsoft.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi().AddAntiforgery();
+builder.Services.AddRazorPages();
+builder.Services.AddOpenApi();
+builder.Services.AddAntiforgery();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -17,10 +17,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAntiforgery();
+app.MapRazorPages();
 
 var sessionsFilePath = Path.Combine("data", "sessions.json");
 
-app.MapGet("/sessions", async () =>
+app.MapGet("/api/sessions", async () =>
 {
     var json = await File.ReadAllTextAsync(sessionsFilePath);
     var data = JsonConvert.DeserializeObject<Data>(json);
@@ -28,9 +29,9 @@ app.MapGet("/sessions", async () =>
 })
 .WithName("GetSessions");
 
-app.MapPost("/sessions", async (Data data) =>
+app.MapPost("/api/sessions", async (Data data) =>
 {
-    try 
+    try
     {
         Console.WriteLine(data);
         await File.WriteAllTextAsync(sessionsFilePath, JsonConvert.SerializeObject(data));
@@ -44,7 +45,7 @@ app.MapPost("/sessions", async (Data data) =>
 .DisableAntiforgery()
 .WithName("PostSessions");
 
-app.MapGet("/file/{filename}", async (string filename) =>
+app.MapGet("/api/file/{filename}", async (string filename) =>
 {
     var filePath = Path.Combine("files", filename);
     var stream = new FileStream(filePath, FileMode.Open);
@@ -52,9 +53,9 @@ app.MapGet("/file/{filename}", async (string filename) =>
 })
 .WithName("GetFile");
 
-app.MapPost("/file", async (IFormFile upload, [FromForm] string sessionName) =>
+app.MapPost("/api/file", async (IFormFile upload, [FromForm] string sessionName) =>
 {
-    try 
+    try
     {
         var filePath = Path.Combine("files", upload.FileName);
         using var stream = new FileStream(filePath, FileMode.Create);
@@ -74,6 +75,23 @@ app.MapPost("/file", async (IFormFile upload, [FromForm] string sessionName) =>
 })
 .DisableAntiforgery()
 .WithName("PostFile");
+
+app.UseStaticFiles();
+
+if(app.Environment.IsDevelopment())
+{
+    app.UseWhen(
+        context => context.Request.Path.StartsWithSegments("/dist"),
+        then => then.UseSpa(spa =>
+        {
+            const int port = 5174;
+
+            spa.Options.SourcePath = "client";
+            spa.Options.DevServerPort = port;
+            spa.UseReactDevelopmentServer(npmScript: "start");
+            spa.UseProxyToSpaDevelopmentServer($"http://localhost:{port}");
+        }));
+}
 
 app.Run();
 

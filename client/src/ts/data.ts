@@ -42,7 +42,7 @@ export class AppDataManager implements AppData {
   saveDebounced: (() => void) | undefined = undefined
 
   load() { log(arguments)()
-    window.fetch(new Request("http://localhost:5110/sessions"))
+    window.fetch(new Request("http://localhost:5110/api/sessions"))
       .then((response) => {
         if(!response.ok) { 
             throw new Error('JSON file not found');
@@ -196,7 +196,7 @@ export class AppDataManager implements AppData {
         this.saving = true
         this.error = false
 
-        window.fetch("http://localhost:5110/sessions", { method: 'POST', body: JSON.stringify({
+        window.fetch("http://localhost:5110/api/sessions", { method: 'POST', body: JSON.stringify({
           sessions: this.sessions,
           tunes: this.tunes,
           performances: this.performances
@@ -229,7 +229,7 @@ export class AppDataManager implements AppData {
     this.saving = true
     this.error = false
 
-    return window.fetch("http://localhost:5110/file", { method: 'POST', body: formData })
+    return window.fetch("http://localhost:5110/api/file", { method: 'POST', body: formData })
       .then(async (response) => {
         log(response)()
 
