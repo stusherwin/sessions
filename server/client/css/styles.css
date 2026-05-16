@@ -1,6 +1,0 @@
-@import "tailwindcss";
-@source "../../wwwroot";
-
-h1 {
-    color: red;
-}

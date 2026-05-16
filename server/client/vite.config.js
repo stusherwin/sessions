@@ -4,21 +4,19 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   base: '/dist/',
-  // root: resolve(__dirname, 'src'),
-  // mode: '',
+  root: resolve(__dirname, 'src'),
   build: {
-    outDir: '../wwwroot/dist',
+    outDir: '../../wwwroot/dist',
     emptyOutDir: true,
     manifest: true,
     rollupOptions: {
       input: {
-        main: './ts/main.ts',
+        main: './src/ts/main.ts',
       }
     }  
   },
   server: {
     port: 5174,
-    // middlewareMode: true
   },
   plugins: [
     tailwindcss(),
