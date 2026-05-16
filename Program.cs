@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Newtonsoft.Json;
@@ -19,7 +20,12 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 app.MapRazorPages();
 
-var sessionsFilePath = Path.Combine("data", "sessions.json");
+var root = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+if(root is null)
+{
+    throw new InvalidOperationException($"Could not find directory for path {Assembly.GetExecutingAssembly().Location}");
+}
+var sessionsFilePath = Path.Combine(root, "data", "sessions.json");
 
 app.MapGet("/api/sessions", async () =>
 {
@@ -47,7 +53,7 @@ app.MapPost("/api/sessions", async (Data data) =>
 
 app.MapGet("/api/file/{filename}", async (string filename) =>
 {
-    var filePath = Path.Combine("files", filename);
+    var filePath = Path.Combine(root, "files", filename);
     var stream = new FileStream(filePath, FileMode.Open);
     return Results.File(stream, "application/json", filename);
 })
@@ -57,7 +63,7 @@ app.MapPost("/api/file", async (IFormFile upload, [FromForm] string sessionName)
 {
     try
     {
-        var filePath = Path.Combine("files", upload.FileName);
+        var filePath = Path.Combine(root, "files", upload.FileName);
         using var stream = new FileStream(filePath, FileMode.Create);
         await upload.CopyToAsync(stream);
         var json = await File.ReadAllTextAsync(sessionsFilePath);

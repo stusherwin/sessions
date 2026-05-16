@@ -33,7 +33,7 @@ export class WaveformManager {
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red',
-      url: 'http://localhost:5110/api/file/' + data.session.filename,
+      url: '/api/file/' + data.session.filename,
       plugins: [regions],
       peaks: data.session.peaks,
       duration: data.session.duration
@@ -246,8 +246,8 @@ export class WaveformManager {
       }
 
       var performanceDuration = details.endTime - details.startTime
-      var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
-      var duration = this.ws.getDuration()
+      // var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+      // var duration = this.ws.getDuration()
       
       var total = this.ws.getWrapper().scrollWidth
       var targetLevel = total / performanceDuration

@@ -17,9 +17,11 @@ client/dist
 client/dist-ssr
 client/*.local
 client/package-lock.json
-server/files
-server/bin
-server/obj
+files
+bin
+obj
+wwwroot/dist
+Debug
 
 # Editor directories and files
 .vscode/*
