@@ -93,7 +93,7 @@
     </template>
 
     <template x-if="data.loaded && pageState.page == 'newSession'">
-      <form @@submit.prevent="uploadFile($event.target)" enctype="multipart/form-data">
+      <form method="post" @@submit.prevent="uploadFile($event.target)" enctype="multipart/form-data">
         <h1>New session</h1>
 
         <div class="mt-4">

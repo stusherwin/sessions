@@ -1,4 +1,3 @@
-using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 using Newtonsoft.Json;
@@ -20,12 +19,13 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 app.MapRazorPages();
 
-var root = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-if(root is null)
-{
-    throw new InvalidOperationException($"Could not find directory for path {Assembly.GetExecutingAssembly().Location}");
-}
+var root = Environment.CurrentDirectory;
 var sessionsFilePath = Path.Combine(root, "data", "sessions.json");
+var filesFilePath = Path.Combine(root, "files");
+
+Console.WriteLine($"Root directory: {root}");
+Console.WriteLine($"Sessions: {sessionsFilePath}");
+Console.WriteLine($"Files: {filesFilePath}");
 
 app.MapGet("/api/sessions", async () =>
 {
@@ -48,12 +48,11 @@ app.MapPost("/api/sessions", async (Data data) =>
         return Results.InternalServerError(ex.Message);
     }
 })
-.DisableAntiforgery()
 .WithName("PostSessions");
 
 app.MapGet("/api/file/{filename}", async (string filename) =>
 {
-    var filePath = Path.Combine(root, "files", filename);
+    var filePath = Path.Combine(filesFilePath, filename);
     var stream = new FileStream(filePath, FileMode.Open);
     return Results.File(stream, "application/json", filename);
 })
@@ -62,8 +61,8 @@ app.MapGet("/api/file/{filename}", async (string filename) =>
 app.MapPost("/api/file", async (IFormFile upload, [FromForm] string sessionName) =>
 {
     try
-    {
-        var filePath = Path.Combine(root, "files", upload.FileName);
+    {    
+        var filePath = Path.Combine(filesFilePath, upload.FileName);
         using var stream = new FileStream(filePath, FileMode.Create);
         await upload.CopyToAsync(stream);
         var json = await File.ReadAllTextAsync(sessionsFilePath);
@@ -79,7 +78,6 @@ app.MapPost("/api/file", async (IFormFile upload, [FromForm] string sessionName)
         return Results.InternalServerError(ex.Message);
     }
 })
-.DisableAntiforgery()
 .WithName("PostFile");
 
 app.UseStaticFiles();
