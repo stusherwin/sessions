@@ -32,3 +32,5 @@ export function log(...args: any[]) {
     return Function.prototype.bind.apply(console.log, [console, file + ' | ' + fn + ':', ...args]) 
   }
 };
+
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

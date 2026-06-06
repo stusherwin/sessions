@@ -30,7 +30,21 @@ window.waveform = undefined
 
 listen('sx:waveform-loading', (data: WaveformData) =>
   setTimeout(() => {
-    window.waveform = new WaveformManager(data)
+    if(data.session.processed) {
+      window.fetch(new Request(`/api/session/${data.session.id}/peaks`))
+        .then((response) => {
+          if(!response.ok) { 
+              throw new Error('JSON file not found');
+          }
+
+          return response.json() as Promise<number[][]>
+        })
+        .then((peaks : number[][]) => {
+          window.waveform = new WaveformManager(data, peaks)
+        })
+    } else {
+        window.waveform = new WaveformManager(data, undefined)
+    }
   }))
 
 listen('sx:waveform-unloading', (sessionId: string) => {

@@ -22,20 +22,20 @@ export class WaveformManager {
   private scrollPosition: number | undefined = undefined
   private container: HTMLElement
 
-  constructor(data: WaveformData) { log(arguments)()
+  constructor(data: WaveformData, peaks: number[][] | undefined) { log(arguments)()
     this.sessionId = data.session.id
 
     var regions = RegionsPlugin.create()
     this.regionManager = new RegionManager(data.session.id, data.performances, data.performanceId, regions)
-    this.container = document.querySelector('.waveform[data-session-id="' + data.session.id + '"]') as HTMLElement
+    this.container = document.querySelector(`.waveform[data-session-id="${this.sessionId}"]`) as HTMLElement
     this.ws = WaveSurfer.create({
       container: this.container,
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red',
-      url: '/api/file/' + data.session.filename,
+      url: `/api/session/${this.sessionId}/file`,
       plugins: [regions],
-      peaks: data.session.peaks,
+      peaks: peaks,
       duration: data.session.duration
     })
 
@@ -81,6 +81,7 @@ export class WaveformManager {
   }
 
   private onWsReady() { log(arguments)()
+    log('duration: ' + this.ws.getDuration())();
     var span = this.regionManager.initialStartAndEndTime
     if(span) {
       log(span)()

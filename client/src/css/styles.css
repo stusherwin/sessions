@@ -64,7 +64,8 @@
   }
 
   input[type="file"] {
-    @apply absolute -left-96;
+    @apply absolute;
+    left: -1000px;
   }
 
   h1 {

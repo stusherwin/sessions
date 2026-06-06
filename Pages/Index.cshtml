@@ -55,7 +55,7 @@
         </button>
 
         <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
-          <template x-for="session in data.sessions">
+          <template x-for="session in data.sessions.filter(s => s.processed)">
             <li x-data x-init="$watch('session.name', name => updateSessionName(session.id, name))"
                 class="item-list-row">
               <h2 class="col-span-2 mt-0 mb-0 font-bold">

@@ -1,10 +1,9 @@
-import { log } from './common.ts'
+import { log, sleep } from './common.ts'
 
 export interface Session {
   id: string
   name: string
-  filename: string
-  peaks: number[][] | undefined
+  processed: boolean
   duration: number | undefined
 }
 
@@ -187,14 +186,16 @@ export class AppDataManager implements AppData {
   }
 
   save() { log(arguments)()
-    if(!this.loaded) {
-      return
-    }
-
     if(!this.saveDebounced) {
-      this.saveDebounced = Alpine.debounce(() => {
+      this.saveDebounced = Alpine.debounce(async () => {
+        if(!this.loaded || this.saving) {
+          return
+        }
+
         this.saving = true
         this.error = false
+
+        log(this.sessions)();
 
         window.fetch("/api/sessions", { method: 'POST', body: JSON.stringify({
           sessions: this.sessions,
@@ -226,10 +227,14 @@ export class AppDataManager implements AppData {
   }
 
   async upload(formData: FormData) {
+    if(this.saving) do {
+      await sleep(100);
+    } while(this.saving)
+
     this.saving = true
     this.error = false
 
-    return window.fetch("/api/file", { method: 'POST', body: formData })
+    return window.fetch("/api/session", { method: 'POST', body: formData })
       .then(async (response) => {
         log(response)()
 
