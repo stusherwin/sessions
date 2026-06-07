@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
+using System.Threading.Channels;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
@@ -38,10 +40,12 @@ public class Program
         app.UseAntiforgery();
         app.MapRazorPages();
 
-        var root = Environment.CurrentDirectory;
+        var root = Directory.GetParent(Environment.CurrentDirectory)!.FullName;
         var dataPath = Path.Combine(root, "data");
         var filesPath = Path.Combine(root, "files");
         var sessionsFilePath = Path.Combine(dataPath, "sessions.json");
+
+        var channel = Channel.CreateUnbounded<SessionFileProcessProgress>();
 
         Console.WriteLine($"Root directory: {root}");
         Console.WriteLine($"Sessions: {sessionsFilePath}");
@@ -102,6 +106,17 @@ public class Program
         })
         .WithName("GetSessionPeaks");
 
+        app.MapGet("api/sessions/progress", (
+            CancellationToken cancellationToken) =>
+        {
+            // 1. ReadAllAsync returns an IAsyncEnumerable
+            // 2. Results.ServerSentEvents tells the browser: "Keep this connection open"
+            // 3. New data is pushed to the client as soon as it enters the channel
+            return Results.ServerSentEvents(
+                channel.Reader.ReadAllAsync(cancellationToken),
+                eventType: "session-progress");
+        });
+
         app.MapPost("/api/session", async (IFormFile upload, [FromForm] string sessionName, IBackgroundTaskQueue taskQueue) =>
         {
             var json = await File.ReadAllTextAsync(sessionsFilePath);
@@ -130,13 +145,102 @@ public class Program
                 Console.WriteLine("Converting to mp3...");
                 var newFileName = $"session-{newSessionId}.mp3";
                 var mp3FilePath = Path.Combine(filesPath, newFileName);
-                var ffmpeg = Process.Start("ffmpeg", $"-i {sourceFilePath} -f mp3 {mp3FilePath}");
-                await ffmpeg.WaitForExitAsync();
+                int progress = 0;
+                using(var ffmpeg = new Process())
+                { 
+                    ffmpeg.StartInfo.FileName = "ffmpeg";
+                    ffmpeg.StartInfo.Arguments = $"-i {sourceFilePath} -f mp3 {mp3FilePath}";
+                    ffmpeg.StartInfo.UseShellExecute = false;
+                    ffmpeg.StartInfo.CreateNoWindow = true;
+                    ffmpeg.StartInfo.RedirectStandardOutput = true;
+                    ffmpeg.StartInfo.RedirectStandardError = true;
+
+                    double? Duration = null;
+                    ffmpeg.EnableRaisingEvents = true;
+                    var exited = new TaskCompletionSource<bool>();
+                    ffmpeg.Exited += (o, e) => exited.TrySetResult(true);
+
+                    DataReceivedEventHandler handler = (o, e) =>
+                    {
+                        if(e.Data is null)
+                        {
+                            return;
+                        }
+
+                        var duration = new Regex(@"Duration: (\d\d):(\d\d):(\d\d).(\d\d)").Match(e.Data);
+                        if(duration.Success)
+                        {
+                            var h = int.Parse(duration.Groups[1].Value);
+                            var m = int.Parse(duration.Groups[2].Value);
+                            var s = int.Parse(duration.Groups[3].Value);
+                            var ms = int.Parse(duration.Groups[4].Value);
+                            Duration = new TimeSpan(0, h, m, s, ms).TotalSeconds;
+                        }                
+
+                        var time = new Regex(@"time=(\d\d):(\d\d):(\d\d).(\d\d)").Match(e.Data);
+                        if(time.Success)
+                        {
+                            var h = int.Parse(time.Groups[1].Value);
+                            var m = int.Parse(time.Groups[2].Value);
+                            var s = int.Parse(time.Groups[3].Value);
+                            var ms = int.Parse(time.Groups[4].Value);
+                            var t = new TimeSpan(0, h, m, s, ms).TotalSeconds;
+                            if(Duration.HasValue) {
+                                var p = (int)((t / Duration) * 80.0);
+                                if(p > progress) {
+                                    progress = p;
+                                    channel.Writer.TryWrite(new(newSessionId, progress));
+                                    Console.WriteLine($"{progress}%");
+                                }
+                            }
+                        }
+                    };
+                    ffmpeg.OutputDataReceived += handler;
+                    ffmpeg.ErrorDataReceived += handler;
+                    ffmpeg.Start();
+                    ffmpeg.BeginOutputReadLine();
+                    ffmpeg.BeginErrorReadLine();
+                    await exited.Task;
+                }
 
                 Console.WriteLine("Processing waveform...");
                 var waveformFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.json");        
-                var audiowaveform = Process.Start("audiowaveform", $"-i {mp3FilePath} -o {waveformFilePath} --pixels-per-second 500 --bits 8 --input-format mp3");
-                await audiowaveform.WaitForExitAsync();
+                using(var audiowaveform = new Process())
+                {
+                    audiowaveform.StartInfo.FileName = "audiowaveform";
+                    audiowaveform.StartInfo.Arguments = $"-i {mp3FilePath} -o {waveformFilePath} --pixels-per-second 500 --bits 8 --input-format mp3";
+                    audiowaveform.StartInfo.UseShellExecute = false;
+                    audiowaveform.StartInfo.CreateNoWindow = true;
+                    audiowaveform.StartInfo.RedirectStandardOutput = true;
+                    audiowaveform.StartInfo.RedirectStandardError = true;
+                    DataReceivedEventHandler handler = (o, e) =>
+                    {
+                        if(e.Data is null)
+                        {
+                            return;
+                        }
+
+                        var done = new Regex(@"Done: (\d+)%").Match(e.Data);
+                        if(done.Success)
+                        {
+                            var p = (int)((double.Parse(done.Groups[1].Value) / 100.0) * 20.0 + 80.0);
+                            if(p > progress) {
+                                progress = p;
+                                channel.Writer.TryWrite(new(newSessionId, progress));
+                                Console.WriteLine($"{progress}%");
+                            }
+                        }
+                    };
+                    var exited = new TaskCompletionSource<bool>();
+                    audiowaveform.EnableRaisingEvents = true;
+                    audiowaveform.Exited += (o, e) => exited.TrySetResult(true);
+                    audiowaveform.ErrorDataReceived += handler;
+                    audiowaveform.OutputDataReceived += handler;
+                    audiowaveform.Start();
+                    audiowaveform.BeginErrorReadLine();
+                    audiowaveform.BeginOutputReadLine();
+                    await exited.Task;
+                }
 
                 var waveformJson = await File.ReadAllTextAsync(waveformFilePath);
                 var waveformData = JsonConvert.DeserializeObject<Waveform>(waveformJson);
@@ -268,3 +372,5 @@ record Waveform(
     int Bits,
     int Length,
     decimal[] Data);
+
+record SessionFileProcessProgress(string sessionId, int progress);

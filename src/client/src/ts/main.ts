@@ -5,7 +5,7 @@ import iconsRaw from 'bootstrap-icons/bootstrap-icons.svg?raw'
 import App from './app.ts'
 import type { WaveformData } from './waveform-manager.ts'
 import { WaveformManager } from './waveform-manager.ts'
-import { listen } from './common.ts'
+import { listen, dispatch } from './common.ts'
 
 var allSvg = document.getElementById('all')
 if(allSvg) {
@@ -52,3 +52,10 @@ listen('sx:waveform-unloading', (sessionId: string) => {
     window.waveform.unload()
   }
 })
+
+const eventSource = new EventSource('/api/sessions/progress');
+
+eventSource.addEventListener('session-progress', (event) => {
+  const payload = JSON.parse(event.data)
+  dispatch('sx:session-progress', payload)
+});

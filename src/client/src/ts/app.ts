@@ -26,6 +26,7 @@ interface App {
   editing: boolean
   fileUpload: string | undefined
   newSessionName: string | undefined
+  sessionProgress: { [sessionId: string] : number; }
 
   init: () => void
   loadSession: (sessionId: string, sessionName: string) => void
@@ -60,10 +61,13 @@ const App = defineComponent<unknown, App>(() => ({
   editing: false,
   fileUpload: undefined,
   newSessionName: undefined,
+  sessionProgress: {},
 
   init() { log(arguments)()
     this.initialised = true
-    this.data.load()
+    this.data.load(() => {
+      this.sessionProgress = Object.fromEntries(this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]))
+    })
   },
 
   loadSession(sessionId: string, performanceId: string | undefined = undefined) { log(arguments)()
@@ -287,6 +291,7 @@ const App = defineComponent<unknown, App>(() => ({
         this.fileUpload = undefined
         this.newSessionName = undefined
         this.loadSessions()
+        this.sessionProgress = Object.fromEntries(this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]))
       })
   },
 
@@ -331,6 +336,20 @@ const App = defineComponent<unknown, App>(() => ({
     }
 
     this.pageState.data.currentPerformance = performanceId
+  },
+
+  onSessionProgress(detail: {sessionId: string, progress: number}) { log(arguments)()
+    var sessionId = detail.sessionId
+    var progress = detail.progress
+
+    if(this.pageState.page != 'sessions') {
+      return
+    }
+
+    this.sessionProgress[sessionId] = progress
+    if(progress == 100) {
+      this.data.findSession(sessionId).processed = true;
+    }
   }
 }))
 

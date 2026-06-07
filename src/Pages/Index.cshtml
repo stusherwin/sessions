@@ -44,7 +44,7 @@
     </div>
 
     <template x-if="data.loaded && pageState.page == 'sessions'">
-      <div>
+      <div @@sx:session-progress.window="onSessionProgress($event.detail)">
         <h1>Sessions</h1>
 
         <button class="icon-btn-text mb-4" @@click="loadNewSession()">
@@ -55,37 +55,48 @@
         </button>
 
         <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
-          <template x-for="session in data.sessions.filter(s => s.processed)">
-            <li x-data x-init="$watch('session.name', name => updateSessionName(session.id, name))"
-                class="item-list-row">
-              <h2 class="col-span-2 mt-0 mb-0 font-bold">
-                <a x-show="!editing" href="#" class="block py-1 border border-transparent" x-text="session.name" @@click="loadSession(session.id)"></a>
-                <input type="text" x-show="editing" class="w-full" x-model="session.name" />
-              </h2>
-              
-              <div class="col-3" x-show="editing && !data.performancesForSession(session.id).length">
-                <button @@click="deleteSession(session.id)">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#trash-fill" />
-                  </svg>
-                </button>
-              </div>
-              
-              <ul class="col-span-full grid grid-cols-subgrid">
-                <template x-for="performance in data.performancesForSession(session.id)">
-                  <li class="mb-1 first-of-type:mt-2 col-span-full grid grid-cols-subgrid">
-                    <a href="#" class="col-1" x-text="formatTime(performance.startTime)" @@click="loadSession(performance.sessionId, performance.id)"></a>
-                    <span class="col-2" x-text="performance.tuneName"></span>
-                    <div class="col-3" x-show="editing">
-                      <button @@click="deletePerformance(performance.id)">
-                        <svg class="bi" width="16" height="16" fill="currentColor">
-                          <use href="#trash-fill" />
-                        </svg>
-                      </button>
-                    </div>
-                  </li>
-                </template>
-              </ul>
+          <template x-for="session in data.sessions">
+            <li class="item-list-row">
+              <template x-if="session.processed">
+                <div x-data x-init="$watch('session.name', name => updateSessionName(session.id, name))" class="col-span-full grid grid-cols-subgrid">
+                  <h2 class="col-span-2 mt-0 mb-0 font-bold">
+                    <a x-show="!editing" href="#" class="block py-1 border border-transparent" x-text="session.name" @@click="loadSession(session.id)"></a>
+                    <input type="text" x-show="editing" class="w-full" x-model="session.name" />
+                  </h2>
+                  
+                  <div class="col-3" x-show="editing && !data.performancesForSession(session.id).length">
+                    <button @@click="deleteSession(session.id)">
+                      <svg class="bi" width="16" height="16" fill="currentColor">
+                        <use href="#trash-fill" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <ul class="col-span-full grid grid-cols-subgrid">
+                    <template x-for="performance in data.performancesForSession(session.id)">
+                      <li class="mb-1 first-of-type:mt-2 col-span-full grid grid-cols-subgrid">
+                        <a href="#" class="col-1" x-text="formatTime(performance.startTime)" @@click="loadSession(performance.sessionId, performance.id)"></a>
+                        <span class="col-2" x-text="performance.tuneName"></span>
+                        <div class="col-3" x-show="editing">
+                          <button @@click="deletePerformance(performance.id)">
+                            <svg class="bi" width="16" height="16" fill="currentColor">
+                              <use href="#trash-fill" />
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+              <template x-if="!session.processed">
+                <div x-data class="col-span-full grid grid-cols-subgrid">
+                  <h2 class="col-span-2 mt-0 mb-0 font-bold">
+                    <span class="block py-1 border border-transparent" x-text="session.name"></span>
+                    Progress: <span x-text="sessionProgress[session.id]"></span>%
+                  </h2>
+                </div>
+              </template>
             </li>
           </template>
         </ul>        
