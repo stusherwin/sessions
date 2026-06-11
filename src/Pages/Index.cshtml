@@ -63,7 +63,7 @@
                     <a x-show="!editing" href="#" class="block py-1 border border-transparent" x-text="session.name" @@click="loadSession(session.id)"></a>
                     <input type="text" x-show="editing" class="w-full" x-model="session.name" />
                   </h2>
-                  
+                  <span x-text="session.id"></span>
                   <div class="col-3" x-show="editing && !data.performancesForSession(session.id).length">
                     <button @@click="deleteSession(session.id)">
                       <svg class="bi" width="16" height="16" fill="currentColor">
@@ -93,7 +93,9 @@
                 <div x-data class="col-span-full grid grid-cols-subgrid">
                   <h2 class="col-span-2 mt-0 mb-0 font-bold">
                     <span class="block py-1 border border-transparent" x-text="session.name"></span>
-                    Progress: <span x-text="sessionProgress[session.id]"></span>%
+                    <div class="block w-full border border-black h-4 relative">
+                      <div class="block absolute bg-gray-600 left-0 top-0 bottom-0" :style="'width: ' + sessionProgress[session.id] + '%;'"></div>
+                    </div>
                   </h2>
                 </div>
               </template>

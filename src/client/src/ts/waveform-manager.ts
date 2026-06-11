@@ -48,6 +48,8 @@ export class WaveformManager {
     subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
     subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
     subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
+    subscribe(this.ws.on('click', (x, y) => log(x, y)()))
+    subscribe(this.ws.on('interaction', (t) => { log(t)(); this.ws.setTime(t); log(this.ws.getCurrentTime())(); }))
     subscribe(listen('sx:play-pause', this.onAppPlayPause.bind(this)))
     subscribe(listen('sx:play-from-start', this.onAppPlayFromStart.bind(this)))
     subscribe(listen('sx:skip-to-start', this.onAppSkipToStart.bind(this)))
@@ -82,6 +84,8 @@ export class WaveformManager {
 
   private onWsReady() { log(arguments)()
     log('duration: ' + this.ws.getDuration())();
+    var peaks = this.ws.exportPeaks()
+    log(peaks)()
     var span = this.regionManager.initialStartAndEndTime
     if(span) {
       log(span)()

@@ -40,7 +40,7 @@ export class AppDataManager implements AppData {
   nextPerformanceId: number = 0
   saveDebounced: (() => void) | undefined = undefined
 
-  load(callback: () => void) { log(arguments)()
+  load(callback: (() => void) | undefined = undefined) { log(arguments)()
     window.fetch(new Request("/api/sessions"))
       .then((response) => {
         if(!response.ok) { 
@@ -81,7 +81,9 @@ export class AppDataManager implements AppData {
       })
       .finally(() => {
         this.loading = false
-        callback()
+        if(callback) {
+          callback()
+        }
       })
   }
 

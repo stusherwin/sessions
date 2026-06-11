@@ -348,7 +348,7 @@ const App = defineComponent<unknown, App>(() => ({
 
     this.sessionProgress[sessionId] = progress
     if(progress == 100) {
-      this.data.findSession(sessionId).processed = true;
+      this.data.load();
     }
   }
 }))
