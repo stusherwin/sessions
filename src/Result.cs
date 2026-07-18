@@ -111,5 +111,4 @@ public record FileStreamResult(FileStream Stream, string ContentType, string Fil
     : OkResult<FileStreamData>(new FileStreamData(Stream, ContentType, FileName));
 
 public record Void();
-
 public record FileStreamData(FileStream Stream, string ContentType, string FileName);

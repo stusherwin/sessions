@@ -51,7 +51,7 @@ public class Program
             handler.StreamSession(sessionId).ToHttp())
         .WithName("GetSessionFile");
 
-        app.MapGet("/api/session/{sessionId}/peaks", async (string sessionId) =>
+        app.MapGet("/api/session/{sessionId}/peaks", (string sessionId) =>
             handler.GetSessionPeaks(sessionId).ToHttp())
         .WithName("GetSessionPeaks");
 
@@ -61,7 +61,7 @@ public class Program
                 eventType: "session-progress"))
         .WithName("GetSessionProgress");
 
-        app.MapPost("/api/session", async (IFormFile upload, [FromForm] string sessionName, IBackgroundTaskQueue taskQueue) =>
+        app.MapPost("/api/session", (IFormFile upload, [FromForm] string sessionName, IBackgroundTaskQueue taskQueue) =>
             handler.ProcessSessionFile(upload, sessionName, taskQueue).ToHttp())
         .WithName("PostSessionFile");
 
