@@ -2,51 +2,53 @@ using System.Threading.Channels;
 
 namespace Sessions;
 
-public record SessionFileProcessProgress(string sessionId, int progress);
+public record TaskProgress(string taskId, int percentComplete);
 
-public interface ISessionProgress
+public interface ISessionsProgress<T> : IProgress<double>
 {
-    double? Duration { get; set; }
-    void UpdateProgress(double progress);
-    ISessionProgress Partial(double percentage);
+    T Data { get; set; }
+    ISessionsProgress<T> Partial(double percentage);
 }
 
-public class SessionProgress(string sessionId, double? duration, int progress, Channel<SessionFileProcessProgress> channel)
-    : ISessionProgress
-{
-    public int Progress { get; private set; } = progress;
-    public double? Duration { get; set; } = duration;
+public record UploadSessionProgress(double? Duration);
+public record BackupProgress();
 
-    public void UpdateProgress(double progress)
+public class ChannelProgress<T>(string taskId, int percentComplete, Channel<TaskProgress> channel, T data)
+    : ISessionsProgress<T>
+{
+    public int PercentComplete { get; private set; } = percentComplete;
+    public T Data { get; set; } = data;
+
+    public void Report(double percentComplete)
     {
-        var p = (int)Math.Round(progress);
-        if(p > Progress) 
+        var p = (int)Math.Round(percentComplete);
+        if(p > PercentComplete) 
         {
-            Progress = p;
-            channel.Writer.TryWrite(new(sessionId, p));
+            PercentComplete = p;
+            channel.Writer.TryWrite(new(taskId, p));
             Console.WriteLine($"{p}%");
         }
     }
 
-    public ISessionProgress Partial(double percentage)
-        => new PartialProgress(this, Progress, percentage);
+    public ISessionsProgress<T> Partial(double percentage)
+        => new PartialProgress(this, PercentComplete, percentage);
 
-    class PartialProgress(SessionProgress progress, int startProgress, double percentage)
-        : ISessionProgress
+    class PartialProgress(ChannelProgress<T> progress, int startProgress, double percentage)
+        : ISessionsProgress<T>
     {
-        public double? Duration
+        public T Data
         {
-            get => progress.Duration;
-            set => progress.Duration = value;
+            get => progress.Data;
+            set => progress.Data = value;
         }
-
-        public void UpdateProgress(double partialProgress)
+        
+        public void Report(double partialProgress)
         {
             var p = partialProgress / 100.0 * percentage + startProgress;
-            progress.UpdateProgress(p);
+            progress.Report(p);
         }
 
-        public ISessionProgress Partial(double subPercentage)
-            => new PartialProgress(progress, progress.Progress, percentage * (subPercentage / 100.0));
+        public ISessionsProgress<T> Partial(double subPercentage)
+            => new PartialProgress(progress, progress.PercentComplete, percentage * (subPercentage / 100.0));
     }
 }

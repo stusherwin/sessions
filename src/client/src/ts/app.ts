@@ -17,6 +17,7 @@ type PageState = { page: 'sessions' }
                | { page: 'session', data: Waveform } 
                | { page: 'tune', data: Tune }
                | { page: 'newSession' }
+               | { page: 'backups' }
 
 interface App {
   initialised: boolean
@@ -26,7 +27,7 @@ interface App {
   editing: boolean
   fileUpload: string | undefined
   newSessionName: string | undefined
-  sessionProgress: { [sessionId: string] : number; }
+  taskProgress: { [taskId: string] : number; }
 
   init: () => void
   loadSession: (sessionId: string, sessionName: string) => void
@@ -34,6 +35,7 @@ interface App {
   loadSessions: () => void
   loadTunes: () => void
   loadNewSession: () => void
+  loadBackups: () => void
   formatTime: (time: number) => string
   updateTuneName: (sessionId: string, tuneId: string, name: string) => void
   deletePerformance: (performanceId: string) => void
@@ -48,9 +50,11 @@ interface App {
   toggleEditing: () => void
   changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
   uploadFile: (form: HTMLFormElement) => void
+  uploadBackup: (form: HTMLFormElement) => void
   onPerformanceCreating: (detail: {sessionId: string, startTime: number, endTime: number}) => void
   onPerformanceUpdating: (detail: {sessionId: string, performanceId: string, startTime: number, endTime: number}) => void
   onCurrentPerformanceChanged: (detail: {sessionId: string, performanceId: string | undefined}) => void
+  formatDate: (date: Date) => string
 }
 
 const App = defineComponent<unknown, App>(() => ({
@@ -61,12 +65,14 @@ const App = defineComponent<unknown, App>(() => ({
   editing: false,
   fileUpload: undefined,
   newSessionName: undefined,
-  sessionProgress: {},
+  taskProgress: {},
 
   init() { log(arguments)()
     this.initialised = true
     this.data.load(() => {
-      this.sessionProgress = Object.fromEntries(this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]))
+      var sessionTasks = this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]);
+      var backupTasks = this.data.backups.map(s => [s.id, s.processed ? 100 : 0]);
+      this.taskProgress = Object.fromEntries([...sessionTasks, ...backupTasks])
     })
   },
 
@@ -136,6 +142,17 @@ const App = defineComponent<unknown, App>(() => ({
 
     this.pageState = {
       page: 'newSession'
+    }
+    this.editing = false
+  },
+
+  loadBackups() { log(arguments)()
+    if(this.pageState.page == 'session') {
+      this.$dispatch('sx:waveform-unloading', this.pageState.data.session.id)
+    }
+
+    this.pageState = {
+      page: 'backups'
     }
     this.editing = false
   },
@@ -291,7 +308,58 @@ const App = defineComponent<unknown, App>(() => ({
         this.fileUpload = undefined
         this.newSessionName = undefined
         this.loadSessions()
-        this.sessionProgress = Object.fromEntries(this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]))
+        var sessionTasks = this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]);
+        var backupTasks = this.data.backups.map(s => [s.id, s.processed ? 100 : 0]);
+        this.taskProgress = Object.fromEntries([...sessionTasks, ...backupTasks])
+      })
+  },
+
+  uploadBackup(form: HTMLFormElement) { log(arguments)()
+    var formData = new FormData()
+    
+    var inputs = form.getElementsByTagName('input')
+    
+    for(var input of inputs) {
+      if(input.files && input.files.length) {
+        formData.append(input.name, input.files[0])
+      } else {
+        formData.append(input.name, input.value)
+      }
+    }
+
+    this.data.uploadBackup(formData)
+      .then(() => {
+        this.fileUpload = undefined
+        this.newSessionName = undefined
+        this.loadBackups()
+        var sessionTasks = this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]);
+        var backupTasks = this.data.backups.map(s => [s.id, s.processed ? 100 : 0]);
+        this.taskProgress = Object.fromEntries([...sessionTasks, ...backupTasks])
+      })
+  },
+
+  restoreBackup(form: HTMLFormElement, backupId: string) { log(arguments)()
+    var formData = new FormData()
+    
+    var inputs = form.getElementsByTagName('input')
+    
+    for(var input of inputs) {
+      if(input.files && input.files.length) {
+        formData.append(input.name, input.files[0])
+      } else {
+        formData.append(input.name, input.value)
+      }
+    }
+
+    this.data.restoreBackup(formData, backupId)
+      .then(() => {
+        this.fileUpload = undefined
+        this.newSessionName = undefined
+        var backup = this.data.findBackup(backupId)
+        backup.processed = false
+        var sessionTasks = this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]);
+        var backupTasks = this.data.backups.map(s => [s.id, s.processed ? 100 : 0]);
+        this.taskProgress = Object.fromEntries([...sessionTasks, ...backupTasks])
       })
   },
 
@@ -338,18 +406,21 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState.data.currentPerformance = performanceId
   },
 
-  onSessionProgress(detail: {sessionId: string, progress: number}) { log(arguments)()
-    var sessionId = detail.sessionId
-    var progress = detail.progress
+  onTaskProgress(detail: {taskId: string, percentComplete: number}) { log(arguments)()
+    var taskId = detail.taskId
+    var progress = detail.percentComplete
 
-    if(this.pageState.page != 'sessions') {
-      return
-    }
-
-    this.sessionProgress[sessionId] = progress
+    this.taskProgress[taskId] = progress
+    log(this.taskProgress)();
     if(progress == 100) {
       this.data.load();
     }
+  },
+
+  formatDate(date: Date) { log(arguments)()
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    var month = months[date.getMonth() - 1]
+    return `${date.getDate().toString().padStart(2, '0')} ${month} ${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`
   }
 }))
 

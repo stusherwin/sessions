@@ -21,12 +21,15 @@
 <body>
   <div x-data="app" 
        x-init="$watch('data.sessions', () => data.save()); $watch('data.tunes', () => data.save()); $watch('data.performances', () => data.save())"
-       class="uninitialised p-4 min-h-screen" :class="{ 'uninitialised': !initialised, 'editing': editing }">
+       class="uninitialised p-4 min-h-screen" :class="{ 'uninitialised': !initialised, 'editing': editing }"
+       @@sx:task-progress.window="onTaskProgress($event.detail)">
 
     <div class="flex items-center">
       <a class="block mr-2 leading-none" href="#" @@click="loadSessions()">Sessions</a> 
       <span class="block separator mr-2 leading-none">|</span>
-      <a class="block mr-auto leading-none" href="#" @@click="loadTunes()">Tunes</a>
+      <a class="block mr-2 leading-none" href="#" @@click="loadTunes()">Tunes</a>
+      <span class="block separator mr-2 leading-none">|</span>
+      <a class="block mr-auto leading-none" href="#" @@click="loadBackups()">Backups</a>
 
       <svg x-data="data" width="16" height="16" fill="currentColor"
         class="status bi mr-2" :class="{ 'animate-spin': data.saving || data.loading, 'text-red-700': data.error }">
@@ -43,8 +46,76 @@
       </button>
     </div>
 
+    <template x-if="data.loaded && pageState.page == 'backups'">
+      <div>
+        <h1>Backups</h1>
+
+        <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
+          <template x-for="backup in data.backups">
+            <li class="item-list-row">
+              <template x-if="backup.processed">
+                <div>
+                  <a :href="`/api/backups/${backup.id}`" x-text="formatDate(backup.date)"></a>
+                  <span x-text="Math.round(backup.size) + ' MB'"></span>
+                  <form method="post" @@submit.prevent="restoreBackup($event.target, backup.id)" enctype="multipart/form-data">
+                    <button type="submit" class="icon-btn-text" :disabled="data.saving">
+                      <svg class="bi" width="16" height="16" fill="currentColor">
+                        <use href="#upload" />
+                      </svg>
+                      Restore
+                    </button>
+                  </form>
+                </div>
+              </template>
+              
+              <template x-if="!backup.processed">
+                <div>
+                  <h2 class="col-span-2 mt-0 mb-0 font-bold">
+                    <span x-text="formatDate(backup.date)"></span>
+                    <div class="block w-full border border-black h-4 relative">
+                      <div class="block absolute bg-gray-600 left-0 top-0 bottom-0" :style="'width: ' + taskProgress[backup.id] + '%;'"></div>
+                    </div>
+                  </h2>
+                </div>
+              </template>
+            </li>
+          </template>
+        </ul>
+
+        <form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data">
+          <h1>Restore from backup</h1>
+
+          <div class="mt-4">
+            <label class="upload-label icon-btn-text" for="upload-file">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#music-note-beamed" />
+              </svg>
+              Select backup file
+            </label>
+
+            <input id="upload-file" 
+                    name="upload"
+                    x-model="fileUpload"
+                    type="file" />
+          </div>
+          <div x-show="fileUpload" class="mt-2">
+            Selected file: <span x-text="(fileUpload || '').replace('C:\\fakepath\\', '')"></span>
+          </div>
+
+          <div class="mt-4 button-group">
+            <button type="submit" class="icon-btn-text" :disabled="data.saving">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#upload" />
+              </svg>
+              Upload
+            </button>
+          </div>
+        </form>
+      </div>
+    </template>
+
     <template x-if="data.loaded && pageState.page == 'sessions'">
-      <div @@sx:session-progress.window="onSessionProgress($event.detail)">
+      <div>
         <h1>Sessions</h1>
 
         <button class="icon-btn-text mb-4" @@click="loadNewSession()">
@@ -63,7 +134,6 @@
                     <a x-show="!editing" href="#" class="block py-1 border border-transparent" x-text="session.name" @@click="loadSession(session.id)"></a>
                     <input type="text" x-show="editing" class="w-full" x-model="session.name" />
                   </h2>
-                  <span x-text="session.id"></span>
                   <div class="col-3" x-show="editing && !data.performancesForSession(session.id).length">
                     <button @@click="deleteSession(session.id)">
                       <svg class="bi" width="16" height="16" fill="currentColor">
@@ -94,7 +164,7 @@
                   <h2 class="col-span-2 mt-0 mb-0 font-bold">
                     <span class="block py-1 border border-transparent" x-text="session.name"></span>
                     <div class="block w-full border border-black h-4 relative">
-                      <div class="block absolute bg-gray-600 left-0 top-0 bottom-0" :style="'width: ' + sessionProgress[session.id] + '%;'"></div>
+                      <div class="block absolute bg-gray-600 left-0 top-0 bottom-0" :style="'width: ' + taskProgress[session.id] + '%;'"></div>
                     </div>
                   </h2>
                 </div>

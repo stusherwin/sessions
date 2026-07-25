@@ -37,3 +37,9 @@ public record Waveform(
     int Length,
     decimal[] Data);
 
+public record Backup(
+    string Id,
+    DateTime Date,
+    double Size,
+    string FilePath,
+    bool Processed);

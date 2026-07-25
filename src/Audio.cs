@@ -5,13 +5,13 @@ namespace Sessions;
 
 public static class Audio
 {
-    public static async Task<Result<Void>> Ffmpeg(string sourceFilePath, string destFilePath, string format, ISessionProgress progress)
+    public static async Task<Result<Void>> Ffmpeg(string sourceFilePath, string destFilePath, string format, ISessionsProgress<UploadSessionProgress> progress)
     {
         Console.WriteLine($"Converting to {format}...");
 
         return await Process.StartProcess("ffmpeg", $"-i {sourceFilePath} -f {format} {destFilePath}", output =>
         {
-            if(!progress.Duration.HasValue)
+            if(!progress.Data.Duration.HasValue)
             {
                 var duration = new Regex(@"Duration: (\d\d):(\d\d):(\d\d).(\d\d)").Match(output);
                 if(duration.Success)
@@ -20,7 +20,7 @@ public static class Audio
                     var m = int.Parse(duration.Groups[2].Value);
                     var s = int.Parse(duration.Groups[3].Value);
                     var ms = int.Parse(duration.Groups[4].Value);
-                    progress.Duration = new TimeSpan(0, h, m, s, ms).TotalSeconds;
+                    progress.Data = new(new TimeSpan(0, h, m, s, ms).TotalSeconds);
                 }
             }                
 
@@ -33,14 +33,14 @@ public static class Audio
                 var ms = int.Parse(time.Groups[4].Value);
                 var t = new TimeSpan(0, h, m, s, ms).TotalSeconds;
 
-                if(progress.Duration.HasValue) {
-                    progress.UpdateProgress(t / progress.Duration.Value * 100.0);
+                if(progress.Data.Duration.HasValue) {
+                    progress.Report(t / progress.Data.Duration.Value * 100.0);
                 }
             }            
         });
     }
 
-    public static async Task<Result<decimal[][]>> AudioWaveform(string mp3FilePath, ISessionProgress progress)
+    public static async Task<Result<decimal[][]>> AudioWaveform(string mp3FilePath, ISessionsProgress<UploadSessionProgress> progress)
     {
         Console.WriteLine("Processing waveform...");
 
@@ -50,7 +50,7 @@ public static class Audio
             var done = new Regex(@"Done: (\d+)%").Match(output);
             if(done.Success)
             {
-                progress.UpdateProgress(double.Parse(done.Groups[1].Value));
+                progress.Report(double.Parse(done.Groups[1].Value));
             }
         }).ThenAsync<Void, decimal[][]>(async () =>
         {

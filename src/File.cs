@@ -13,14 +13,14 @@ public static class File
         return new OkResult();
     }
 
-    public static async Task<Result<FileStreamData>> StreamFile(string filePath, string contentType)
+    public static async Task<Result<FileStreamData>> StreamFile(string filePath, string contentType, string? fileName = null)
     {
         if(!System.IO.File.Exists(filePath))
         {
             return new NotFoundResult<FileStreamData>($"File not found: {filePath}");
         }
 
-        var fileName = Path.GetFileName(filePath);
+        fileName ??= Path.GetFileName(filePath);
 
         var stream = new FileStream(filePath, FileMode.Open);
         return new FileStreamResult(stream, contentType, fileName);

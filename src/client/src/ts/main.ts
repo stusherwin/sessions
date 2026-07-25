@@ -53,9 +53,9 @@ listen('sx:waveform-unloading', (sessionId: string) => {
   }
 })
 
-const eventSource = new EventSource('/api/sessions/progress');
+const eventSource = new EventSource('/api/tasks/progress');
 
-eventSource.addEventListener('session-progress', (event) => {
+eventSource.addEventListener('task-progress', (event) => {
   const payload = JSON.parse(event.data)
-  dispatch('sx:session-progress', payload)
+  dispatch('sx:task-progress', payload)
 });

@@ -48,22 +48,38 @@ public class Program
         .WithName("PostSessions");
 
         app.MapGet("/api/session/{sessionId}/file", (string sessionId) =>
-            handler.StreamSession(sessionId).ToHttp())
+            handler.StreamSessionFile(sessionId).ToHttp())
         .WithName("GetSessionFile");
 
         app.MapGet("/api/session/{sessionId}/peaks", (string sessionId) =>
             handler.GetSessionPeaks(sessionId).ToHttp())
         .WithName("GetSessionPeaks");
 
-        app.MapGet("api/sessions/progress", (CancellationToken cancellationToken) =>
-            Results.ServerSentEvents(
-                handler.GetProgress(cancellationToken),
-                eventType: "session-progress"))
-        .WithName("GetSessionProgress");
-
         app.MapPost("/api/session", (IFormFile upload, [FromForm] string sessionName, IBackgroundTaskQueue taskQueue) =>
             handler.ProcessSessionFile(upload, sessionName, taskQueue).ToHttp())
         .WithName("PostSessionFile");
+
+        app.MapGet("/api/backups", () => 
+            handler.GetBackups().ToHttp())
+        .WithName("GetBackups");
+
+        app.MapGet("/api/backups/{backupId}", (string backupId) => 
+            handler.StreamBackupFile(backupId).ToHttp())
+        .WithName("GetBackup");
+
+        app.MapPost("/api/backups", (IFormFile upload, IBackgroundTaskQueue taskQueue) => 
+            handler.ProcessBackupFile(upload, taskQueue).ToHttp())
+        .WithName("PostBackup");
+
+        app.MapPost("/api/backups/restore/{backupId}", (string backupId, IBackgroundTaskQueue taskQueue) => 
+            handler.RestoreBackup(backupId, taskQueue).ToHttp())
+        .WithName("PostBackupRestore");
+
+        app.MapGet("api/tasks/progress", (CancellationToken cancellationToken) =>
+            Results.ServerSentEvents(
+                handler.GetProgress(cancellationToken),
+                eventType: "task-progress"))
+        .WithName("GetTaskProgress");
 
         app.UseStaticFiles();
 

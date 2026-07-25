@@ -17,8 +17,8 @@ src/client/dist
 src/client/dist-ssr
 src/client/*.local
 src/client/package-lock.json
+backup
 files
-data
 
 # Editor directories and files
 .vscode/*

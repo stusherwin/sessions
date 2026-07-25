@@ -22,6 +22,14 @@ export interface Performance {
   endTime: number
 }
 
+export interface Backup {
+  id: string
+  date: Date
+  size: number
+  filePath: string
+  processed: boolean
+}
+
 export interface AppData {
   sessions: Session[]
   tunes: Tune[]
@@ -32,6 +40,7 @@ export class AppDataManager implements AppData {
   sessions: Session[] = []
   tunes: Tune[] = []
   performances: Performance[] = []
+  backups: Backup[] = []
   loading: boolean = true
   loaded: boolean = false
   saving: boolean = false
@@ -73,17 +82,38 @@ export class AppDataManager implements AppData {
         }
         this.nextPerformanceId = maxPerfId + 1
         this.error = false
-        setTimeout(() => this.loaded = true)
       })
       .catch(err => {
         console.error(err)
         this.error = true
       })
       .finally(() => {
-        this.loading = false
-        if(callback) {
-          callback()
-        }
+        window.fetch(new Request("/api/backups"))
+          .then((response) => {
+            if(!response.ok) { 
+                throw new Error('JSON file not found');
+            }
+
+            return response.json() as Promise<Backup[]>
+          })
+          .then((backups : Backup[]) => {
+            log(backups)()
+            this.backups = backups
+            for(var backup of this.backups) {
+              backup.date = new Date(backup.date)
+            }
+          })
+          .catch(err => {
+            console.error(err)
+            this.error = true
+          })
+          .finally(() => {
+            setTimeout(() => this.loaded = true)
+            this.loading = false
+            if(callback) {
+              callback()
+            }
+          })
       })
   }
 
@@ -109,6 +139,14 @@ export class AppDataManager implements AppData {
       throw new Error(`Performance not found: ${id}`)
     }
     return performance
+  }
+
+  findBackup(id: string): Backup { log(arguments)()
+    var backup = this.backups.find(s => s.id == id)
+    if(!backup) {
+      throw new Error(`Backup not found: ${id}`)
+    }
+    return backup
   }
 
   performancesForSession(sessionId: string) {
@@ -250,6 +288,68 @@ export class AppDataManager implements AppData {
       })
       .then((session : Session) => {
         this.sessions.push(session)
+      })
+      .catch(err => {
+        console.error(err)
+        this.error = true
+      })
+      .finally(() => {
+        setTimeout(() => {
+          this.saving = false
+        }, 1000)
+      })
+  }
+
+  async uploadBackup(formData: FormData) {
+    if(this.saving) do {
+      await sleep(100);
+    } while(this.saving)
+
+    this.saving = true
+    this.error = false
+
+    return window.fetch("/api/backups", { method: 'POST', body: formData })
+      .then(async (response) => {
+        log(response)()
+
+        if(!response.ok) {
+          var error = await response.text();
+          throw new Error(error);
+        }
+
+        return response.json() as Promise<Backup>
+      })
+      .then((backup : Backup) => {
+        backup.date = new Date(backup.date)
+        this.backups.push(backup)
+      })
+      .catch(err => {
+        console.error(err)
+        this.error = true
+      })
+      .finally(() => {
+        setTimeout(() => {
+          this.saving = false
+        }, 1000)
+      })
+  }
+
+  async restoreBackup(formData: FormData, backupId: string) {
+    if(this.saving) do {
+      await sleep(100);
+    } while(this.saving)
+
+    this.saving = true
+    this.error = false
+
+    return window.fetch(`/api/backups/restore/${backupId}`, { method: 'POST', body: formData })
+      .then(async (response) => {
+        log(response)()
+
+        if(!response.ok) {
+          var error = await response.text();
+          throw new Error(error);
+        }
       })
       .catch(err => {
         console.error(err)
