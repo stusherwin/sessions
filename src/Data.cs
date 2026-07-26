@@ -40,6 +40,6 @@ public record Waveform(
 public record Backup(
     string Id,
     DateTime Date,
-    double Size,
     string FilePath,
-    bool Processed);
+    bool Processed,
+    double? Size = null);

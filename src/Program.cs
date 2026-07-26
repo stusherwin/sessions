@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
@@ -36,48 +37,49 @@ public class Program
         app.UseAntiforgery();
         app.MapRazorPages();
 
-        var root = Directory.GetParent(Environment.CurrentDirectory)!.FullName;
-        var handler = new SessionHandler(root);
+        var channel = Channel.CreateUnbounded<TaskProgress>();
+        var sessions = new SessionHandler(channel);
+        var backups = new BackupsHandler(channel);
 
         app.MapGet("/api/sessions", () => 
-            handler.GetSessions().ToHttp())
+            sessions.GetSessions().ToHttp())
         .WithName("GetSessions");
         
         app.MapPost("/api/sessions", (Data data) => 
-            handler.WriteSessions(data).ToHttp())
+            sessions.WriteSessions(data).ToHttp())
         .WithName("PostSessions");
 
         app.MapGet("/api/session/{sessionId}/file", (string sessionId) =>
-            handler.StreamSessionFile(sessionId).ToHttp())
+            sessions.StreamSessionFile(sessionId).ToHttp())
         .WithName("GetSessionFile");
 
         app.MapGet("/api/session/{sessionId}/peaks", (string sessionId) =>
-            handler.GetSessionPeaks(sessionId).ToHttp())
+            sessions.GetSessionPeaks(sessionId).ToHttp())
         .WithName("GetSessionPeaks");
 
         app.MapPost("/api/session", (IFormFile upload, [FromForm] string sessionName, IBackgroundTaskQueue taskQueue) =>
-            handler.ProcessSessionFile(upload, sessionName, taskQueue).ToHttp())
+            sessions.ProcessSessionFile(upload, sessionName, taskQueue).ToHttp())
         .WithName("PostSessionFile");
 
         app.MapGet("/api/backups", () => 
-            handler.GetBackups().ToHttp())
+            backups.GetBackups().ToHttp())
         .WithName("GetBackups");
 
         app.MapGet("/api/backups/{backupId}", (string backupId) => 
-            handler.StreamBackupFile(backupId).ToHttp())
+            backups.StreamBackupFile(backupId).ToHttp())
         .WithName("GetBackup");
 
         app.MapPost("/api/backups", (IFormFile upload, IBackgroundTaskQueue taskQueue) => 
-            handler.ProcessBackupFile(upload, taskQueue).ToHttp())
+            backups.ProcessBackupFile(upload, taskQueue).ToHttp())
         .WithName("PostBackup");
 
         app.MapPost("/api/backups/restore/{backupId}", (string backupId, IBackgroundTaskQueue taskQueue) => 
-            handler.RestoreBackup(backupId, taskQueue).ToHttp())
+            backups.RestoreBackup(backupId, taskQueue).ToHttp())
         .WithName("PostBackupRestore");
 
         app.MapGet("api/tasks/progress", (CancellationToken cancellationToken) =>
             Results.ServerSentEvents(
-                handler.GetProgress(cancellationToken),
+                channel.Reader.ReadAllAsync(cancellationToken),
                 eventType: "task-progress"))
         .WithName("GetTaskProgress");
 

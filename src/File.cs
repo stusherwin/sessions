@@ -4,7 +4,7 @@ namespace Sessions;
 
 public static class File
 {
-    public static async Task<Result<Void>> UploadFile(IFormFile upload, string filePath)
+    public static async Task<Result<Void>> UploadFileAsync(IFormFile upload, string filePath)
     {
         Console.WriteLine($"Saving file: {filePath}...");
         
@@ -13,7 +13,7 @@ public static class File
         return new OkResult();
     }
 
-    public static async Task<Result<FileStreamData>> StreamFile(string filePath, string contentType, string? fileName = null)
+    public static async Task<Result<FileStreamData>> StreamFileAsync(string filePath, string contentType, string? fileName = null)
     {
         if(!System.IO.File.Exists(filePath))
         {
@@ -26,7 +26,7 @@ public static class File
         return new FileStreamResult(stream, contentType, fileName);
     }
 
-    public static async Task<Result<T>> ReadJsonFile<T>(string filePath)
+    public static async Task<Result<T>> ReadJsonFileAsync<T>(string filePath)
     {
         if(!System.IO.File.Exists(filePath))
         {
@@ -50,7 +50,7 @@ public static class File
         }
     }
 
-    public static async Task<Result<Void>> WriteJsonFile<T>(string filePath, T data)
+    public static async Task<Result<Void>> WriteJsonFileAsync<T>(string filePath, T data)
     {
         try
         {
