@@ -3,15 +3,8 @@ using System.Threading.Channels;
 
 namespace Sessions;
 
-public class BackupsHandler
+public class BackupsHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue taskQueue)
 {
-    private readonly Channel<TaskProgress> _channel;
-
-    public BackupsHandler(Channel<TaskProgress> channel)
-    {
-        _channel = channel;
-    }
-
     public async Task<Result<Backup[]>> GetBackups()
     {
         var backups = GetAllBackups();
@@ -19,13 +12,13 @@ public class BackupsHandler
         return new OkResult<Backup[]>(backups);
     }
 
-    public async Task<Result<Backup>> CreateBackup(IBackgroundTaskQueue taskQueue)
+    public async Task<Result<Backup>> CreateBackup()
     {
-        var backup = CreateBackup();
+        var backup = NewBackup();
 
         await taskQueue.QueueBackgroundWorkItemAsync(async (CancellationToken cancellationToken) =>
         {
-            var progress = new ChannelProgress<BackupProgress>(backup.Id, 0, _channel, new());
+            var progress = new ChannelProgress<BackupProgress>(backup.Id, 0, channel, new());
 
             ZipFileWithProgress.CreateFromDirectory(FileSystem.Files, backup.FilePath, progress);
             progress.Report(100);
@@ -40,36 +33,27 @@ public class BackupsHandler
             .ThenAsync(backup => File.StreamFileAsync(backup.FilePath, "application/zip", $"sessions-{backup.Date}.bak"));
     }
 
-    public Task<Result<Backup>> ProcessBackupFile(IFormFile upload, IBackgroundTaskQueue taskQueue)
+    public Task<Result<Backup>> ProcessBackupFile(IFormFile upload)
     {        
-        var backup = CreateBackup(upload);
-        var sourceFilePath = Path.Combine(Path.GetTempPath(), $"{backup.Id}{Path.GetExtension(upload.FileName)}");
+        var backup = NewBackup(upload);
+        var progress = new ChannelProgress<BackupProgress>(backup.Id, 0, channel, new());
 
-        return File.UploadFileAsync(upload, sourceFilePath)
+        return File.UploadFileAsync(upload, backup.FilePath)
             .ThenAsync<Void, Backup>(async () => 
             {
-                await taskQueue.QueueBackgroundWorkItemAsync(async (CancellationToken cancellationToken) =>
-                {
-                    var progress = new ChannelProgress<BackupProgress>(backup.Id, 0, _channel, new());
-
-                    ZipFileWithProgress.CreateFromDirectory(FileSystem.Files, backup.FilePath, progress.Partial(45));
-                    ClearFiles(progress.Partial(10));
-                    ZipFileWithProgress.ExtractToDirectory(sourceFilePath, FileSystem.Files, progress.Partial(45));
-                    progress.Report(100);
-                });
-            
+                progress.Report(100);            
                 return new OkResult<Backup>(backup);
             });
     }
 
-    public Task<Result<Void>> RestoreBackup(string backupId, IBackgroundTaskQueue taskQueue)
+    public Task<Result<Void>> RestoreBackup(string backupId)
     {
         return FindBackup(backupId)
             .ThenAsync<Void>(async backup =>
             {
                 await taskQueue.QueueBackgroundWorkItemAsync(async (CancellationToken cancellationToken) =>
                 {
-                    var progress = new ChannelProgress<BackupProgress>(backupId, 0, _channel, new());
+                    var progress = new ChannelProgress<BackupProgress>(backupId, 0, channel, new());
 
                     ClearFiles(progress.Partial(10));
                     ZipFileWithProgress.ExtractToDirectory(backup.FilePath, FileSystem.Files, progress.Partial(90));
@@ -142,7 +126,7 @@ public class BackupsHandler
         progress.Report(100);
     }
 
-    private Backup CreateBackup()
+    private Backup NewBackup()
     {
         var backupId = Guid.NewGuid().ToString();
         var date = DateTime.Now;
@@ -152,7 +136,7 @@ public class BackupsHandler
         return backup;
     }
 
-    private Backup CreateBackup(IFormFile upload)
+    private Backup NewBackup(IFormFile upload)
     {
         var backupId = Guid.NewGuid().ToString();
         var date = DateTime.Now;

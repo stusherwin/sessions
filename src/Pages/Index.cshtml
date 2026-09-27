@@ -50,6 +50,16 @@
       <div>
         <h1>Backups</h1>
 
+        <form method="post" @@submit.prevent="createBackup($event.target)" enctype="multipart/form-data"
+              class="mb-8">
+          <button type="submit" class="icon-btn-text" :disabled="data.saving">
+            <svg class="bi" width="16" height="16" fill="currentColor">
+              <use href="#folder-plus" />
+            </svg>
+            Backup now
+          </button>
+        </form>
+
         <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
           <template x-for="backup in data.backups">
             <li class="item-list-row">
@@ -60,7 +70,7 @@
                   <form method="post" @@submit.prevent="restoreBackup($event.target, backup.id)" enctype="multipart/form-data">
                     <button type="submit" class="icon-btn-text" :disabled="data.saving">
                       <svg class="bi" width="16" height="16" fill="currentColor">
-                        <use href="#upload" />
+                        <use href="#folder-check" />
                       </svg>
                       Restore
                     </button>
@@ -82,13 +92,14 @@
           </template>
         </ul>
 
-        <form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data">
-          <h1>Restore from backup</h1>
+        <form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data"
+              class="mt-8">
+          <h1>Upload backup file</h1>
 
           <div class="mt-4">
             <label class="upload-label icon-btn-text" for="upload-file">
               <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#music-note-beamed" />
+                <use href="#folder" />
               </svg>
               Select backup file
             </label>
@@ -118,7 +129,7 @@
       <div>
         <h1>Sessions</h1>
 
-        <button class="icon-btn-text mb-4" @@click="loadNewSession()">
+        <button class="icon-btn-text mb-8" @@click="loadNewSession()">
           <svg class="bi" width="16" height="16" fill="currentColor">
             <use href="#plus-circle-fill" />
           </svg>

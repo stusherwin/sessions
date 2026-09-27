@@ -361,4 +361,38 @@ export class AppDataManager implements AppData {
         }, 1000)
       })
   }
+
+  async createBackup(formData: FormData) {
+    if(this.saving) do {
+      await sleep(100);
+    } while(this.saving)
+
+    this.saving = true
+    this.error = false
+
+    return window.fetch("/api/backups/create", { method: 'POST', body: formData })
+      .then(async (response) => {
+        log(response)()
+
+        if(!response.ok) {
+          var error = await response.text();
+          throw new Error(error);
+        }
+
+        return response.json() as Promise<Backup>
+      })
+      .then((backup : Backup) => {
+        backup.date = new Date(backup.date)
+        this.backups.push(backup)
+      })
+      .catch(err => {
+        console.error(err)
+        this.error = true
+      })
+      .finally(() => {
+        setTimeout(() => {
+          this.saving = false
+        }, 1000)
+      })
+  }
 }

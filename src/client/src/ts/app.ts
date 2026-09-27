@@ -51,6 +51,8 @@ interface App {
   changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
   uploadFile: (form: HTMLFormElement) => void
   uploadBackup: (form: HTMLFormElement) => void
+  restoreBackup: (form: HTMLFormElement, backupId: string) => void
+  createBackup: (form: HTMLFormElement) => void
   onPerformanceCreating: (detail: {sessionId: string, startTime: number, endTime: number}) => void
   onPerformanceUpdating: (detail: {sessionId: string, performanceId: string, startTime: number, endTime: number}) => void
   onCurrentPerformanceChanged: (detail: {sessionId: string, performanceId: string | undefined}) => void
@@ -357,6 +359,30 @@ const App = defineComponent<unknown, App>(() => ({
         this.newSessionName = undefined
         var backup = this.data.findBackup(backupId)
         backup.processed = false
+        var sessionTasks = this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]);
+        var backupTasks = this.data.backups.map(s => [s.id, s.processed ? 100 : 0]);
+        this.taskProgress = Object.fromEntries([...sessionTasks, ...backupTasks])
+      })
+  },
+
+  createBackup(form: HTMLFormElement) { log(arguments)()
+    var formData = new FormData()
+    
+    var inputs = form.getElementsByTagName('input')
+    
+    for(var input of inputs) {
+      if(input.files && input.files.length) {
+        formData.append(input.name, input.files[0])
+      } else {
+        formData.append(input.name, input.value)
+      }
+    }
+
+    this.data.createBackup(formData)
+      .then(() => {
+        this.fileUpload = undefined
+        this.newSessionName = undefined
+        this.loadBackups()
         var sessionTasks = this.data.sessions.map(s => [s.id, s.processed ? 100 : 0]);
         var backupTasks = this.data.backups.map(s => [s.id, s.processed ? 100 : 0]);
         this.taskProgress = Object.fromEntries([...sessionTasks, ...backupTasks])
