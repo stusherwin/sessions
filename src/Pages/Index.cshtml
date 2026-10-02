@@ -20,371 +20,184 @@
 </head>
 <body>
   <div x-data="app" 
-       x-init="$watch('data.sessions', () => data.save()); $watch('data.tunes', () => data.save()); $watch('data.performances', () => data.save())"
-       class="uninitialised p-4 min-h-screen" :class="{ 'uninitialised': !initialised, 'editing': editing }"
-       @@sx:task-progress.window="onTaskProgress($event.detail)">
-
-    <div class="flex items-center">
-      <a class="block mr-2 leading-none" href="#" @@click="loadSessions()">Sessions</a> 
-      <span class="block separator mr-2 leading-none">|</span>
-      <a class="block mr-2 leading-none" href="#" @@click="loadTunes()">Tunes</a>
-      <span class="block separator mr-2 leading-none">|</span>
-      <a class="block mr-auto leading-none" href="#" @@click="loadBackups()">Backups</a>
-
-      <svg x-data="data" width="16" height="16" fill="currentColor"
-        class="status bi mr-2" :class="{ 'animate-spin': data.saving || data.loading, 'text-red-700': data.error }">
-        <use href="#hourglass" x-show="data.saving || data.loading" />
-        <use href="#exclamation-triangle-fill" x-show="data.error" />
-        <use href="#check-circle-fill" x-show="!data.saving && !data.loading && !data.error" />
-      </svg>
-
-      <button x-show="pageState.page != 'newSession'" @@click="toggleEditing()">
-        <svg class="bi" width="16" height="16" fill="currentColor">
-          <use href="#pencil-fill" x-show="!editing" />
-          <use href="#x" x-show="editing" />
-        </svg>
-      </button>
-    </div>
-
-    <template x-if="data.loaded && pageState.page == 'backups'">
-      <div>
-        <h1>Backups</h1>
-
-        <form method="post" @@submit.prevent="createBackup($event.target)" enctype="multipart/form-data"
-              class="mb-8">
-          <button type="submit" class="icon-btn-text" :disabled="data.saving">
+       class="bg-gray-100 p-4 min-h-screen">
+    <div class="bg-white fixed -mt-4 -mx-4 px-4 w-full border-b border-gray-200 shadow-sm/20">
+      <h1 class="text-2xl mt-2 mb-4 font-bold">Tuesday session 20th June 2026</h1>
+      <div class="bg-blue-200 -mx-4 min-h-64 relative inset-shadow-sm/20">
+        <div class="absolute right-4 bottom-2 flex">
+          <button class="ml-2">
             <svg class="bi" width="16" height="16" fill="currentColor">
-              <use href="#folder-plus" />
+              <use href="#zoom-out" />
             </svg>
-            Backup now
           </button>
-        </form>
-
-        <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
-          <template x-for="backup in data.backups">
-            <li class="item-list-row">
-              <template x-if="backup.processed">
-                <div>
-                  <a :href="`/api/backups/${backup.id}`" x-text="formatDate(backup.date)"></a>
-                  <span x-text="Math.round(backup.size) + ' MB'"></span>
-                  <form method="post" @@submit.prevent="restoreBackup($event.target, backup.id)" enctype="multipart/form-data">
-                    <button type="submit" class="icon-btn-text" :disabled="data.saving">
-                      <svg class="bi" width="16" height="16" fill="currentColor">
-                        <use href="#folder-check" />
-                      </svg>
-                      Restore
-                    </button>
-                  </form>
-                </div>
-              </template>
-              
-              <template x-if="!backup.processed">
-                <div>
-                  <h2 class="col-span-2 mt-0 mb-0 font-bold">
-                    <span x-text="formatDate(backup.date)"></span>
-                    <div class="block w-full border border-black h-4 relative">
-                      <div class="block absolute bg-gray-600 left-0 top-0 bottom-0" :style="'width: ' + taskProgress[backup.id] + '%;'"></div>
-                    </div>
-                  </h2>
-                </div>
-              </template>
-            </li>
-          </template>
-        </ul>
-
-        <form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data"
-              class="mt-8">
-          <h1>Upload backup file</h1>
-
-          <div class="mt-4">
-            <label class="upload-label icon-btn-text" for="upload-file">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#folder" />
-              </svg>
-              Select backup file
-            </label>
-
-            <input id="upload-file" 
-                    name="upload"
-                    x-model="fileUpload"
-                    type="file" />
-          </div>
-          <div x-show="fileUpload" class="mt-2">
-            Selected file: <span x-text="(fileUpload || '').replace('C:\\fakepath\\', '')"></span>
-          </div>
-
-          <div class="mt-4 button-group">
-            <button type="submit" class="icon-btn-text" :disabled="data.saving">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#upload" />
-              </svg>
-              Upload
-            </button>
-          </div>
-        </form>
+          <button class="ml-2">
+            <svg class="bi" width="16" height="16" fill="currentColor">
+              <use href="#zoom-in" />
+            </svg>
+          </button>
+          <button class="ml-2" :disabled="false">
+            <svg class="bi" width="16" height="16" fill="currentColor">
+              <use href="#pencil-fill" />
+            </svg>
+          </button>
+        </div>
       </div>
-    </template>
-
-    <template x-if="data.loaded && pageState.page == 'sessions'">
-      <div>
-        <h1>Sessions</h1>
-
-        <button class="icon-btn-text mb-8" @@click="loadNewSession()">
+      <div class="mt-2 mb-2 flex items-center">
+        <button class="mr-2">
           <svg class="bi" width="16" height="16" fill="currentColor">
-            <use href="#plus-circle-fill" />
+            <use href="#skip-start-fill" />
           </svg>
-          New session
+        </button>
+        <button class="mr-2" :class="{'selected': playing}" @@click="togglePlay()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#play-fill" />
+          </svg>
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#pause-fill" />
+          </svg>
+        </button>
+        <button class="mr-2">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#skip-end-fill" />
+          </svg>
+        </button>
+        <button class="mr-4" :class="{'selected': looping}" @@click="toggleLoop()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#repeat" />
+          </svg>
+        </button>
+        <div class="mr-2">Playback speed:</div>
+
+        <button class="rounded-r-none" @@click="playbackSpeed.dec()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#dash" />
+          </svg>
+        </button>
+        <input type="text" class="rounded-none bg-white w-16 text-center p-0" 
+          x-model="playbackSpeed.text"
+          x-ref="playbackSpeedInput"
+          @@focus="$refs.playbackSpeedInput.select()"
+          @@change="normalizePlaybackSpeed()" />
+        <button class="rounded-l-none" @@click="playbackSpeed.inc()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#plus" />
+          </svg>
         </button>
 
-        <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
-          <template x-for="session in data.sessions">
-            <li class="item-list-row">
-              <template x-if="session.processed">
-                <div x-data x-init="$watch('session.name', name => updateSessionName(session.id, name))" class="col-span-full grid grid-cols-subgrid">
-                  <h2 class="col-span-2 mt-0 mb-0 font-bold">
-                    <a x-show="!editing" href="#" class="block py-1 border border-transparent" x-text="session.name" @@click="loadSession(session.id)"></a>
-                    <input type="text" x-show="editing" class="w-full" x-model="session.name" />
-                  </h2>
-                  <div class="col-3" x-show="editing && !data.performancesForSession(session.id).length">
-                    <button @@click="deleteSession(session.id)">
-                      <svg class="bi" width="16" height="16" fill="currentColor">
-                        <use href="#trash-fill" />
-                      </svg>
-                    </button>
-                  </div>
-                  
-                  <ul class="col-span-full grid grid-cols-subgrid">
-                    <template x-for="performance in data.performancesForSession(session.id)">
-                      <li class="mb-1 first-of-type:mt-2 col-span-full grid grid-cols-subgrid">
-                        <a href="#" class="col-1" x-text="formatTime(performance.startTime)" @@click="loadSession(performance.sessionId, performance.id)"></a>
-                        <span class="col-2" x-text="performance.tuneName"></span>
-                        <div class="col-3" x-show="editing">
-                          <button @@click="deletePerformance(performance.id)">
-                            <svg class="bi" width="16" height="16" fill="currentColor">
-                              <use href="#trash-fill" />
-                            </svg>
-                          </button>
-                        </div>
-                      </li>
-                    </template>
-                  </ul>
-                </div>
-              </template>
-              <template x-if="!session.processed">
-                <div x-data class="col-span-full grid grid-cols-subgrid">
-                  <h2 class="col-span-2 mt-0 mb-0 font-bold">
-                    <span class="block py-1 border border-transparent" x-text="session.name"></span>
-                    <div class="block w-full border border-black h-4 relative">
-                      <div class="block absolute bg-gray-600 left-0 top-0 bottom-0" :style="'width: ' + taskProgress[session.id] + '%;'"></div>
-                    </div>
-                  </h2>
-                </div>
-              </template>
-            </li>
-          </template>
-        </ul>        
-      </div>
-    </template>
-
-    <template x-if="data.loaded && pageState.page == 'newSession'">
-      <form method="post" @@submit.prevent="uploadFile($event.target)" enctype="multipart/form-data">
-        <h1>New session</h1>
-
-        <div class="mt-4">
-          <label class="upload-label icon-btn-text" for="upload-file">
-            <svg class="bi" width="16" height="16" fill="currentColor">
-              <use href="#music-note-beamed" />
-            </svg>
-            Select audio file
-          </label>
-
-          <input id="upload-file" 
-                  name="upload"
-                  x-model="fileUpload"
-                  type="file" 
-                  accept="audio/mpeg, audio/ogg, audio/wav, audio/aac, audio/webm, audio/mp4"
-                  @@change="if(!newSessionName) { newSessionName = $event.target.files[0].name.split('.')[0]; }" />
-        </div>
-        <div x-show="fileUpload" class="mt-2">
-          Selected file: <span x-text="(fileUpload || '').replace('C:\\fakepath\\', '')"></span>
-        </div>
-
-        <div class="mt-4">
-          <label class="block">Name</label>
-          <input type="text" name="sessionName" class="w-full" x-model="newSessionName" />
-        </div>
-
-        <div class="mt-4 button-group">
-          <button type="submit" class="icon-btn-text" :disabled="data.saving">
-            <svg class="bi" width="16" height="16" fill="currentColor">
-              <use href="#upload" />
-            </svg>
-            Upload
+        <div class="ml-auto flex items-baseline">
+          <div class="mr-2 pt-1">Play:</div>
+          <button class="mr-2" :class="{'selected': mode == 'full'}" :disabled="mode == 'full'" @@click="setMode('full')">
+            Full audio
           </button>
-          <button class="icon-btn-text" @@click="loadSessions()">
-            <svg class="bi" width="16" height="16" fill="currentColor">
-              <use href="#x-circle-fill" />
-            </svg>
-            Cancel
+          <button class="mr-2" :class="{'selected': mode == 'tune'}" :disabled="mode == 'tune'" @@click="setMode('tune')">
+            Tune
+          </button>
+          <button class="" :class="{'selected': mode == 'section'}" :disabled="mode == 'section'" @@click="setMode('section')">
+            Section
           </button>
         </div>
-      </form>
-    </template>
-
-
-    <template x-if="data.loaded && pageState.page == 'tunes'">
-      <div>
-        <h1>Tunes</h1>
-
-        <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
-          <template x-for="tune in data.tunes">
-            <li x-data x-init="$watch('tune.name', name => updateTuneName(tune.id, name))"
-                class="item-list-row">
-              <h2 class="col-span-2 mt-0 mb-0 font-bold">
-                <a x-show="!editing" href="#" class="block py-1 border border-transparent" x-text="tune.name" @@click="loadTune(tune.id)"></a>
-                <input type="text" x-show="editing" class="w-full" x-model="tune.name" />
-              </h2>
-
-              <div class="col-3">
-                <button x-show="editing && !data.performancesForTune(tune.id).length" @@click="deleteTune(tune.id)">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#trash-fill" />
-                  </svg>
-                </button>
-              </div>
-
-              <ul class="col-span-full grid grid-cols-subgrid">
-                <template x-for="performance in data.performancesForTune(tune.id)">
-                  <li class="mb-1 first-of-type:mt-2 col-span-full grid grid-cols-subgrid">
-                    <span class="col-1" x-text="performance.sessionName"></span>
-                    <a href="#" class="col-2" x-text="formatTime(performance.startTime)" @@click="loadSession(performance.sessionId, performance.id)"></a>
-                    <div class="col-3" x-show="editing">
-                      <button @@click="deletePerformance(performance.id)">
-                        <svg class="bi" width="16" height="16" fill="currentColor">
-                          <use href="#trash-fill" />
-                        </svg>
-                      </button>
-                    </div>
-                  </li>
-                </template>
-              </ul>
-            </li>
-          </template>
-        </ul>
       </div>
-    </template>
+    </div>
+    <div class="mt-86 -mx-4 px-4" x-show="mode == 'tune' || mode == 'section'">
+      <template x-for="tune in tunes">
+        <div class="-mx-4 px-4" :class="{'bg-blue-200 border-y border-blue-300': tune.isCurrent}">
+          <div class="flex items-center">
+            <div class="">
+              <h2 class="text-lg mt-2 mb-2 font-bold" x-text="tune.name"></h2>
+            </div>
+            <div class="ml-auto flex" x-show="mode == 'tune' && tune.isCurrent">
+              <button class="rounded-r-none" @@click="tune.startTime.dec()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#dash" />
+                </svg>
+              </button>
+              <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                x-model="tune.startTime.text"
+                x-ref="tuneStartTimeInput"
+                @@focus="$refs.tuneStartTimeInput.select()"
+                @@change="tune.startTime.normalize()" />
+              <button class="rounded-l-none" @@click="tune.startTime.inc()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#plus" />
+                </svg>
+              </button>
 
-    <template x-if="data.loaded && pageState.page == 'tune'">
-      <div>
-        <h1 x-show="!editing" x-text="pageState.data.name"></h1>
-        <input type="text" x-show="editing" class="text-2xl font-bold mt-1 mb-3" x-model="pageState.data.name" />
-
-        <ul class="col-span-full grid grid-cols-[max-content_1fr_max-content] gap-y-4 gap-x-2">
-          <template x-for="performance in data.performancesForTune(pageState.data.id)">
-            <li class="mb-1 first-of-type:mt-2 col-span-full grid grid-cols-subgrid">
-              <span class="col-1" x-text="performance.sessionName"></span>
-              <a href="#" class="col-2" x-text="formatTime(performance.startTime)" @@click="loadSession(performance.sessionId, performance.id)"></a>
-              <div class="col-3" x-show="editing">
-                <button @@click="deletePerformance(performance.id)">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#trash-fill" />
-                  </svg>
-                </button>
-              </div>
-            </li>
-          </template>
-        </ul>
-      </div>
-    </template>
-
-    <template x-if="data.loaded && pageState.page == 'session'">
-      <div @@sx:waveform-ready.window="pageState.data.ready = true"
-           @@sx:waveform-load-progress-updated.window="pageState.data.loading = $event.detail.loading"
-           @@sx:performance-creating.window="onPerformanceCreating($event.detail)"
-           @@sx:performance-updating.window="onPerformanceUpdating($event.detail)"
-           @@sx:current-performance-changed.window="onCurrentPerformanceChanged($event.detail)"
-           @@sx:playing.window="playing = true"
-           @@sx:stopped.window="playing = false">
-        <h1 x-show="!editing" x-text="pageState.data.session.name"></h1>
-        <textarea wrap="hard" x-show="editing" class="text-2xl font-bold mt-1 mb-0 w-full" :rows="Math.ceil(pageState.data.session.name.length / 50)" x-model="pageState.data.session.name"></textarea>
-        <div x-show="!pageState.data.ready">
-          Loading: <span x-text="pageState.data.loading"></span>%
-        </div>
-        <div x-show="pageState.data.ready">
-          <div :data-session-id="pageState.data.session.id" class="waveform" :class="{'mt-4': !editing, 'mt-2': editing}"></div>
-          <div class="button-group">
-            <button @@click="skipToStart()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-start-fill" />
-              </svg>
-            </button>
-            <button @@click="skipBackward()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-backward-fill" />
-              </svg>
-            </button>
-            <button @@click="playPause()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use x-show="!playing" href="#play-fill" />
-                <use x-show="playing" href="#pause-fill" />
-              </svg>
-            </button>
-            <button @@click="skipForward()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-forward-fill" />
-              </svg>
-            </button>
-            <button @@click="skipToEnd()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-end-fill" />
-              </svg>
-            </button>
-            <button @@click="zoomIn()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#zoom-in" />
-              </svg>
-            </button>
-            <button @@click="zoomOut()">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#zoom-out" />
-              </svg>
-            </button>
+              <div class="ml-2 mr-2">-</div>
+              
+              <button class="rounded-r-none" @@click="tune.endTime.dec()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#dash" />
+                </svg>
+              </button>
+              <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                x-model="tune.endTime.text"
+                x-ref="tuneEndTimeInput"
+                @@focus="$refs.tuneEndTimeInput.select()"
+                @@change="tune.endTime.normalize()" />
+              <button class="rounded-l-none" @@click="tune.endTime.inc()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#plus" />
+                </svg>
+              </button>
+            </div>
+            <div class="ml-auto flex" x-show="mode != 'tune' || !tune.isCurrent">
+              <div class="" x-text="tune.startTime.text"></div>
+              <div class="">&nbsp;-&nbsp;</div>
+              <div x-text="tune.endTime.text"></div>
+            </div>
           </div>
-
-          <ul class="mt-4 col-span-full grid grid-cols-[1fr_max-content_max-content] gap-y-4 gap-x-2">
-            <template x-for="performance in data.performancesForSession(pageState.data.session.id)">
-              <li x-data x-init="$watch('performance.tuneName', name => updatePerformanceTuneName(pageState.data.session.id, performance.id, name))"
-                  class="col-span-full grid grid-cols-subgrid">
-                <h2 class="col-1 mt-0 mb-0" :class="{'font-bold': pageState.data.currentPerformance == performance.id}">
-                  <a x-show="!editing" href="#" x-text="performance.tuneName" @@click="loadTune(performance.tuneId)"></a>
-                  <input x-show="editing" type="text" class="w-full" x-model="performance.tuneName" />
-                </h2>
-                <div class="col-2">
-                  <select x-show="editing" @@change="changeTune(pageState.data.session.id, performance.id, $event.target.value)">
-                    <template x-for="t in data.tunes">
-                      <option :value="t.id" x-text="t.name" :selected="t.id == performance.tuneId"></option>
-                    </template>
-                  </select>
+          <div class="-mx-4 px-4 inset-shadow-sm/20" x-show="mode == 'section' && tune.isCurrent"">
+            <template x-for="section in tune.sections">
+              <div class="-mx-4 px-4 flex items-center" :class="{'border-y bg-blue-300 border-blue-400': section.isCurrent}">
+                <div class="">
+                  <h2 class="text-lg mt-2 mb-2 font-bold" x-text="section.name"></h2>
                 </div>
-                <div class="col-3">
-                  <button x-show="editing" class="col-3" @@click="deletePerformance(performance.id)">
+                <div class="ml-auto flex" x-show="section.isCurrent">
+                  <button class="rounded-r-none" @@click="section.startTime.dec()">
                     <svg class="bi" width="16" height="16" fill="currentColor">
-                      <use href="#trash-fill" />
+                      <use href="#dash" />
+                    </svg>
+                  </button>
+                  <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                    x-model="section.startTime.text"
+                    x-ref="sectionStartTimeInput"
+                    @@focus="$refs.sectionStartTimeInput.select()"
+                    @@change="section.startTime.normalize()" />
+                  <button class="rounded-l-none" @@click="section.startTime.inc()">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#plus" />
+                    </svg>
+                  </button>
+
+                  <div class="ml-2 mr-2">-</div>
+                  
+                  <button class="rounded-r-none" @@click="section.endTime.dec()">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#dash" />
+                    </svg>
+                  </button>
+                  <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                    x-model="section.endTime.text"
+                    x-ref="sectionEndTimeInput"
+                    @@focus="$refs.sectionEndTimeInput.select()"
+                    @@change="section.endTime.normalize()" />
+                  <button class="rounded-l-none" @@click="section.endTime.inc()">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#plus" />
                     </svg>
                   </button>
                 </div>
-                <div class="col-span-full">
-                  <span x-text="formatTime(performance.startTime, true)"></span>
-                  -
-                  <span x-text="formatTime(performance.endTime, true)"></span>
+                <div class="ml-auto flex" x-show="!section.isCurrent">
+                  <div class="" x-text="section.startTime.text"></div>
+                  <div class="">&nbsp;-&nbsp;</div>
+                  <div x-text="section.endTime.text"></div>
                 </div>
-              </li>
+              </div>
             </template>
-          </ul>
+          </div>
         </div>
-      </div>
-    </template>
-
+      </template>
+    </div>
   </div>
   <div id="all" hidden ></div>
   <environment names="Development">
