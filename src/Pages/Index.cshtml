@@ -105,10 +105,19 @@
     </div>
     <div class="mt-86 -mx-4 px-4" x-show="mode == 'tune' || mode == 'section'">
       <template x-for="tune in tunes.items">
-        <div class="-mx-4 px-4 relative z-5 border-y" :class="{
+        <div x-data class="-mx-4 px-4 relative z-5 border-y" :class="{
           'bg-blue-200 border-blue-300': tune.isCurrent, 
           'bg-white border-transparent': !tune.isCurrent, 
-        }">
+        }"
+          :id="'tune-' + tune.name.replace(' ', '-')"
+          x-init="$watch('tune.isCurrent', isCurrent => {
+              if(mode == 'tune' && isCurrent) {
+                setTimeout(function() {
+                  var el = document.getElementById('tune-' + tune.name.replace(' ', '-'));
+                  window.scroll(0, el.offsetTop - 90 * 4)
+                }, 0);
+              }
+            })">
           <div class="flex items-center -mx-4 px-4 bg-blue-200" :class="{
               'bg-blue-200': tune.isCurrent, 
               'bg-white': !tune.isCurrent, 
@@ -160,7 +169,16 @@
           </div>
           <div class="-mx-4 px-4" x-show="mode == 'section' && tune.isCurrent">
             <template x-for="section in tune.sections.items">
-              <div class="border-y -mx-4 px-4 flex items-center" :class="{'bg-blue-300 border-blue-400': section.isCurrent, 'border-transparent': !section.isCurrent}">
+              <div x-data class="border-y -mx-4 px-4 flex items-center" :class="{'bg-blue-300 border-blue-400': section.isCurrent, 'border-transparent': !section.isCurrent}"
+                :id="'sec-' + tune.name.replace(' ', '-') + '-' + section.name.replace(' ', '-')"
+                x-init="$watch('section.isCurrent', isCurrent => {
+                    if(mode == 'section' && isCurrent) {
+                      setTimeout(function() {
+                        var el = document.getElementById('sec-' + tune.name.replace(' ', '-') + '-' + section.name.replace(' ', '-'));
+                        window.scroll(0, el.parentElement.parentElement.offsetTop - 90 * 4 + el.offsetTop - el.parentElement.offsetTop)
+                      }, 0);
+                    }
+                  })">
                 <div class="">
                   <h2 class="text-lg mt-2 mb-2 font-bold" x-text="section.name"></h2>
                 </div>
@@ -209,6 +227,7 @@
           </div>
         </div>
       </template>
+      @* <div class="-mx-4 bg-white h-100"></div> *@
     </div>
   </div>
   <div id="all" hidden ></div>

@@ -374,15 +374,64 @@ document.addEventListener('alpine:init', () => {
         new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
         new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
         new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 6', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 7', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 8', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 9', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 10', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 11', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 12', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 13', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 14', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 15', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
+      ]),
+      new Tune('Tune 16', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
       ])
     ]),
     init() {
-      console.log(typeof this.tunes)
-      console.log(Array.isArray(this.tunes))
-      for(var tune of this.tunes) {
-        console.log(tune)
-
-      }
     },
     setMode(mode: mode) {
       this.mode = mode
