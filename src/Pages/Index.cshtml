@@ -48,6 +48,11 @@
             <use href="#skip-start-fill" />
           </svg>
         </button>
+        <button class="mr-2" @@click="skipPrevious()" :disabled="skipPreviousDisabled()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#skip-backward-fill" />
+          </svg>
+        </button>
         <button class="mr-2" :class="{'selected': playing}" @@click="togglePlay()">
           <svg class="bi" width="16" height="16" fill="currentColor">
             <use href="#play-fill" />
@@ -56,9 +61,9 @@
             <use href="#pause-fill" />
           </svg>
         </button>
-        <button class="mr-2">
+        <button class="mr-2" @@click="skipNext()" :disabled="skipNextDisabled()">
           <svg class="bi" width="16" height="16" fill="currentColor">
-            <use href="#skip-end-fill" />
+            <use href="#skip-forward-fill" />
           </svg>
         </button>
         <button class="mr-4" :class="{'selected': looping}" @@click="toggleLoop()">
@@ -99,8 +104,8 @@
       </div>
     </div>
     <div class="mt-86 -mx-4 px-4" x-show="mode == 'tune' || mode == 'section'">
-      <template x-for="tune in tunes">
-        <div class="-mx-4 px-4" :class="{'bg-blue-200 border-y border-blue-300': tune.isCurrent}">
+      <template x-for="tune in tunes.items">
+        <div class="border-y -mx-4 px-4" :class="{'bg-blue-200 border-blue-300': tune.isCurrent, 'border-transparent': !tune.isCurrent}">
           <div class="flex items-center">
             <div class="">
               <h2 class="text-lg mt-2 mb-2 font-bold" x-text="tune.name"></h2>
@@ -146,9 +151,9 @@
               <div x-text="tune.endTime.text"></div>
             </div>
           </div>
-          <div class="-mx-4 px-4 inset-shadow-sm/20" x-show="mode == 'section' && tune.isCurrent"">
-            <template x-for="section in tune.sections">
-              <div class="-mx-4 px-4 flex items-center" :class="{'border-y bg-blue-300 border-blue-400': section.isCurrent}">
+          <div class="-mx-4 px-4" x-show="mode == 'section' && tune.isCurrent"">
+            <template x-for="section in tune.sections.items">
+              <div class="border-y -mx-4 px-4 flex items-center first-of-type:inset-shadow-sm/20" :class="{'bg-blue-300 border-blue-400': section.isCurrent, 'border-transparent': !section.isCurrent}">
                 <div class="">
                   <h2 class="text-lg mt-2 mb-2 font-bold" x-text="section.name"></h2>
                 </div>

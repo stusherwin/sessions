@@ -12,33 +12,179 @@ if(allSvg) {
 window.Alpine = Alpine
 Alpine.plugin(persist)
 
-class Tune {
-  name: string
-  startTime: Time
-  endTime: Time
+interface CurrentItem {
   isCurrent: boolean
-  sections: Section[]
+}
 
-  constructor(name: string, startTime: Time, endTime: Time, isCurrent: boolean, sections: Section[]) {
-    this.name = name
-    this.startTime = startTime
-    this.endTime = endTime
-    this.isCurrent = isCurrent
-    this.sections = sections
+class CurrentItemCollection<T extends CurrentItem> {
+  items: T[]
+
+  constructor(items: T[]) {
+    this.items = items
+  }
+
+  [Symbol.iterator](): ArrayIterator<T> {
+    return this.items[Symbol.iterator]()
+  }
+
+  any() {
+    return !!this.items.length
+  }
+
+  findPrevious(predicate: (item: T) => boolean) {
+    var i = this.items.findIndex(i => i.isCurrent)
+    if(i < 0) {
+      return
+    }
+
+    do { 
+      i-- 
+    } while(i >= 0 && !predicate(this.items[i]))
+    
+    if(i < 0 || !predicate(this.items[i])) {
+      return
+    }
+
+    return this.items[i]
+  }
+
+  findNext(predicate: (item: T) => boolean) {
+    var i = this.items.findIndex(i => i.isCurrent) 
+    if(i < 0) {
+      return
+    }
+
+    do { 
+      i++
+    } while(i <= this.items.length - 1 && !predicate(this.items[i]))
+    
+    if(i > this.items.length - 1 || !predicate(this.items[i])) {
+      return
+    }
+
+    return this.items[i]
+  }
+
+  getCurrent() {
+    return this.items.find(i => i.isCurrent)
+  }
+
+  setCurrent(item: T) {
+    for(var i = 0; i < this.items.length; i++) {
+      this.items[i].isCurrent = this.items[i] == item
+    }
+
+    return item
+  }
+
+  clearCurrent() {
+    for(var i = 0; i < this.items.length; i++) {
+      this.items[i].isCurrent = false
+    }
+  }
+
+  ensureCurrent() {
+    if(!this.items.length) {
+      return
+    }
+
+    var current = this.items.find(i => i.isCurrent);
+    if(!current) {
+      this.items[0].isCurrent = true
+      current = this.items[0]
+    }
+
+    return current
+  }
+
+  setFirstCurrent() {
+    if(!this.items.length) {
+      return
+    }
+
+    for(var i = 0; i < this.items.length; i++) {
+      this.items[i].isCurrent = i == 0
+    }
+
+    return this.items[0]
+  }
+
+  setLastCurrent() {
+    if(!this.items.length) {
+      return
+    }
+
+    for(var i = 0; i < this.items.length; i++) {
+      this.items[i].isCurrent = i == this.items.length - 1
+    }
+
+    return this.items[0]
+  }
+
+  setPreviousCurrent() {
+    if(!this.items.length) {
+      return
+    }
+
+    var i = this.items.findIndex(i => i.isCurrent);
+    if(i > 0) {
+      i = i - 1
+    } else {
+      i = 0
+    }
+
+    for(var item of this.items) {
+      item.isCurrent = false
+    }
+    this.items[i].isCurrent = true
+    return this.items[i]
+  }
+
+  setNextCurrent() {
+    if(!this.items.length) {
+      return
+    }
+
+    var i = this.items.findIndex(i => i.isCurrent);
+    if(i >= 0 && i < this.items.length - 1) {
+      i = i + 1
+    } else {
+      i = this.items.length - 1
+    }
+
+    for(var item of this.items) {
+      item.isCurrent = false
+    }
+    this.items[i].isCurrent = true
+    return this.items[i]
   }
 }
 
-class Section {
+class Tune implements CurrentItem {
   name: string
   startTime: Time
   endTime: Time
-  isCurrent: boolean
+  isCurrent: boolean = false
+  sections: CurrentItemCollection<Section>
 
-  constructor(name: string, startTime: Time, endTime: Time, isCurrent: boolean) {
+  constructor(name: string, startTime: Time, endTime: Time, sections: Section[]) {
     this.name = name
     this.startTime = startTime
     this.endTime = endTime
-    this.isCurrent = isCurrent
+    this.sections = new CurrentItemCollection<Section>(sections)
+  }
+}
+
+class Section implements CurrentItem {
+  name: string
+  startTime: Time
+  endTime: Time
+  isCurrent: boolean = false
+
+  constructor(name: string, startTime: Time, endTime: Time) {
+    this.name = name
+    this.startTime = startTime
+    this.endTime = endTime
   }
 }
 
@@ -188,47 +334,143 @@ interface App {
   playing: boolean
   looping: boolean
   playbackSpeed: Percentage
-  tunes: Tune[]
+  tunes: CurrentItemCollection<Tune>
   init: () => void
   setMode: (mode: mode) => void
   togglePlay: () => void
   toggleLoop: () => void
+  skipPrevious: () => void
+  skipNext: () => void
+  skipPreviousDisabled: () => boolean
+  skipNextDisabled: () => boolean
 }
 
 document.addEventListener('alpine:init', () => {
   Alpine.data('app', defineComponent<unknown, App>(() => ({
-    mode: 'tune',
+    mode: 'full',
     playing: false,
     looping: false,
     playbackSpeed: new Percentage('100%'),
-    tunes: [
-      new Tune('Tune 1', new Time('0:00:10.000'), new Time('0:03:00.000'), false, [
-        new Section('Section A', new Time('0:00:10.000'), new Time('0:00:20.000'), false),
-        new Section('Section B', new Time('0:00:20.000'), new Time('0:00:30.000'), false),
-        new Section('Section C', new Time('0:00:30.000'), new Time('0:00:40.000'), false)
+    tunes: new CurrentItemCollection<Tune>([
+      new Tune('Tune 1', new Time('0:00:00.000'), new Time('0:03:00.000'), [
+        new Section('Section A', new Time('0:00:00.000'), new Time('0:00:10.000')),
+        new Section('Section B', new Time('0:00:10.000'), new Time('0:00:20.000')),
+        new Section('Section C', new Time('0:00:20.000'), new Time('0:00:30.000'))
       ]),
-      new Tune('Tune 2', new Time('0:03:00.000'), new Time('0:06:00.000'), true, [
-        new Section('Section A', new Time('0:03:00.000'), new Time('0:03:10.000'), false),
-        new Section('Section B', new Time('0:03:10.000'), new Time('0:03:20.000'), true),
-        new Section('Section C', new Time('0:03:20.000'), new Time('0:03:30.000'), false)
+      new Tune('Tune 2', new Time('0:03:00.000'), new Time('0:06:00.000'), []),
+      new Tune('Tune 3', new Time('0:06:00.000'), new Time('0:09:00.000'), [
+        new Section('Section A', new Time('0:06:00.000'), new Time('0:06:10.000')),
+        new Section('Section B', new Time('0:06:10.000'), new Time('0:06:20.000')),
+        new Section('Section C', new Time('0:06:20.000'), new Time('0:06:30.000'))
       ]),
-      new Tune('Tune 3', new Time('0:06:00.000'), new Time('0:09:00.000'), false, [
-        new Section('Section A', new Time('0:06:00.000'), new Time('0:06:10.000'), false),
-        new Section('Section B', new Time('0:06:10.000'), new Time('0:06:20.000'), false),
-        new Section('Section C', new Time('0:06:20.000'), new Time('0:06:30.000'), false)
+      new Tune('Tune 4', new Time('0:09:00.000'), new Time('0:12:00.000'), []),
+      new Tune('Tune 5', new Time('0:12:00.000'), new Time('0:15:00.000'), [
+        new Section('Section A', new Time('0:12:00.000'), new Time('0:12:10.000')),
+        new Section('Section B', new Time('0:12:10.000'), new Time('0:12:20.000')),
+        new Section('Section C', new Time('0:12:20.000'), new Time('0:12:30.000'))
       ])
-    ],
+    ]),
     init() {
+      console.log(typeof this.tunes)
+      console.log(Array.isArray(this.tunes))
+      for(var tune of this.tunes) {
+        console.log(tune)
+
+      }
     },
     setMode(mode: mode) {
       this.mode = mode
+      if(mode == 'tune') {
+        this.tunes.ensureCurrent()
+      } else if(mode == 'section') {
+        var tune = this.tunes.ensureCurrent()
+        if(tune) {
+          tune.sections.ensureCurrent()
+        }
+      }
     },
     togglePlay() {
       this.playing = !this.playing
     },
     toggleLoop() {
       this.looping = !this.looping
-    },    
+    },
+    skipPrevious() {
+      if(this.mode == 'tune') {
+        var currentTune = this.tunes.getCurrent()
+        var newCurrentTune = this.tunes.setPreviousCurrent()
+        if(!newCurrentTune) {
+          return
+        }
+
+        newCurrentTune.sections.setFirstCurrent()
+        if(currentTune && currentTune != newCurrentTune) {
+          currentTune.sections.clearCurrent()
+        }
+      } else if(this.mode == 'section') {
+        var currentTune = this.tunes.getCurrent()
+        if(!currentTune) {
+          return
+        }
+        
+        var currentSection = currentTune.sections.getCurrent()
+        var newCurrentSection = currentTune.sections.setPreviousCurrent()
+        if(newCurrentSection && newCurrentSection != currentSection) {
+          return
+        }
+
+        var newCurrentTune = this.tunes.findPrevious(t => t.sections.any())
+        if(newCurrentTune) {
+          this.tunes.setCurrent(newCurrentTune)
+          currentTune.sections.clearCurrent()
+          newCurrentTune.sections.setLastCurrent()
+        }
+      }
+    },
+    skipNext() {
+      if(this.mode == 'tune') {
+        var currentTune = this.tunes.getCurrent()
+        var newCurrentTune = this.tunes.setNextCurrent()
+        if(!newCurrentTune) {
+          return
+        }
+
+        newCurrentTune.sections.setFirstCurrent()
+        if(currentTune && currentTune != newCurrentTune) {
+          currentTune.sections.clearCurrent()
+        }
+      } else if(this.mode == 'section') {
+        var currentTune = this.tunes.getCurrent()
+        if(!currentTune) {
+          return
+        }
+        
+        var currentSection = currentTune.sections.getCurrent()
+        var newCurrentSection = currentTune.sections.setNextCurrent()
+        if(newCurrentSection && newCurrentSection != currentSection) {
+          return
+        }
+
+        var newCurrentTune = this.tunes.findNext(t => t.sections.any())
+        if(newCurrentTune) {
+          this.tunes.setCurrent(newCurrentTune)
+          currentTune.sections.clearCurrent()
+          newCurrentTune.sections.setFirstCurrent()
+        }
+      }
+    },
+    skipPreviousDisabled() {
+      if(this.mode == 'full') {
+        return true;
+      }
+      return false
+    },
+    skipNextDisabled() {
+      if(this.mode == 'full') {
+        return true;
+      }
+      return false
+    }    
   })))
 })
 
