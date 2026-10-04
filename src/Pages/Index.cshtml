@@ -20,8 +20,8 @@
 </head>
 <body>
   <div x-data="app" 
-       class="bg-gray-100 p-4 min-h-screen">
-    <div class="bg-white fixed -mt-4 -mx-4 px-4 w-full border-b border-gray-200 shadow-sm/20">
+       class="bg-white p-4 min-h-screen">
+    <div class="bg-white fixed z-10 -mt-4 -mx-4 px-4 w-full border-b border-gray-200 shadow-md/20">
       <h1 class="text-2xl mt-2 mb-4 font-bold">Tuesday session 20th June 2026</h1>
       <div class="bg-blue-200 -mx-4 min-h-64 relative inset-shadow-sm/20">
         <div class="absolute right-4 bottom-2 flex">
@@ -105,8 +105,15 @@
     </div>
     <div class="mt-86 -mx-4 px-4" x-show="mode == 'tune' || mode == 'section'">
       <template x-for="tune in tunes.items">
-        <div class="border-y -mx-4 px-4" :class="{'bg-blue-200 border-blue-300': tune.isCurrent, 'border-transparent': !tune.isCurrent}">
-          <div class="flex items-center">
+        <div class="-mx-4 px-4 relative z-5 border-y" :class="{
+          'bg-blue-200 border-blue-300': tune.isCurrent, 
+          'bg-white border-transparent': !tune.isCurrent, 
+        }">
+          <div class="flex items-center -mx-4 px-4 bg-blue-200" :class="{
+              'bg-blue-200': tune.isCurrent, 
+              'bg-white': !tune.isCurrent, 
+              'sticky top-90 shadow-md/20 ': mode == 'section' && tune.isCurrent
+            }">
             <div class="">
               <h2 class="text-lg mt-2 mb-2 font-bold" x-text="tune.name"></h2>
             </div>
@@ -151,9 +158,9 @@
               <div x-text="tune.endTime.text"></div>
             </div>
           </div>
-          <div class="-mx-4 px-4" x-show="mode == 'section' && tune.isCurrent"">
+          <div class="-mx-4 px-4" x-show="mode == 'section' && tune.isCurrent">
             <template x-for="section in tune.sections.items">
-              <div class="border-y -mx-4 px-4 flex items-center first-of-type:inset-shadow-sm/20" :class="{'bg-blue-300 border-blue-400': section.isCurrent, 'border-transparent': !section.isCurrent}">
+              <div class="border-y -mx-4 px-4 flex items-center" :class="{'bg-blue-300 border-blue-400': section.isCurrent, 'border-transparent': !section.isCurrent}">
                 <div class="">
                   <h2 class="text-lg mt-2 mb-2 font-bold" x-text="section.name"></h2>
                 </div>

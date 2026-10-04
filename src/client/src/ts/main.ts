@@ -361,7 +361,13 @@ document.addEventListener('alpine:init', () => {
       new Tune('Tune 3', new Time('0:06:00.000'), new Time('0:09:00.000'), [
         new Section('Section A', new Time('0:06:00.000'), new Time('0:06:10.000')),
         new Section('Section B', new Time('0:06:10.000'), new Time('0:06:20.000')),
-        new Section('Section C', new Time('0:06:20.000'), new Time('0:06:30.000'))
+        new Section('Section C', new Time('0:06:20.000'), new Time('0:06:30.000')),
+        new Section('Section D', new Time('0:06:30.000'), new Time('0:06:40.000')),
+        new Section('Section E', new Time('0:06:40.000'), new Time('0:06:50.000')),
+        new Section('Section F', new Time('0:06:50.000'), new Time('0:07:00.000')),
+        new Section('Section G', new Time('0:07:00.000'), new Time('0:07:10.000')),
+        new Section('Section H', new Time('0:07:10.000'), new Time('0:07:20.000')),
+        new Section('Section I', new Time('0:07:20.000'), new Time('0:07:30.000'))
       ]),
       new Tune('Tune 4', new Time('0:09:00.000'), new Time('0:12:00.000'), []),
       new Tune('Tune 5', new Time('0:12:00.000'), new Time('0:15:00.000'), [
