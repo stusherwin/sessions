@@ -37,14 +37,16 @@ public class Program
             app.MapOpenApi();
         } else
         {
-            Console.WriteLine("Using ForwardedHeaders");
             app.UseForwardedHeaders(new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             });
+            
+            app.UseHsts();
         }
+        
+        app.UseHttpsRedirection();
 
-        //app.UseHttpsRedirection();
         // app.UseAntiforgery();
         app.MapRazorPages();
 
