@@ -1,31 +1,5 @@
-/* @import "tailwindcss"; */
-/* @source "../../../Pages"; */
-
-/* @theme {
-  --color-red-50: oklch(97.1% 0.013 17.38);
-  --color-red-100: oklch(93.6% 0.032 17.717);
-  --color-red-200: oklch(88.5% 0.062 18.334);
-  --color-red-300: oklch(80.8% 0.114 19.571);
-  --color-red-400: oklch(70.4% 0.191 22.216);
-  --color-red-500: oklch(63.7% 0.237 25.331);
-  --color-red-600: oklch(57.7% 0.245 27.325);
-  --color-red-700: oklch(50.5% 0.213 27.518);
-  --color-red-800: oklch(44.4% 0.177 26.899);
-  --color-red-900: oklch(39.6% 0.141 25.723);
-  --color-red-950: oklch(25.8% 0.092 26.042);
-
-  --color-gray-50: oklch(98.5% 0.002 17.38);
-  --color-gray-100: oklch(96.7% 0.003 17.717);
-  --color-gray-200: oklch(92.8% 0.006 18.334);
-  --color-gray-300: oklch(87.2% 0.01 19.571);
-  --color-gray-400: oklch(70.7% 0.022 22.216);
-  --color-gray-500: oklch(55.1% 0.027 25.331);
-  --color-gray-600: oklch(44.6% 0.03 27.325);
-  --color-gray-700: oklch(37.3% 0.034 27.518);
-  --color-gray-800: oklch(27.8% 0.033 26.899);
-  --color-gray-900: oklch(21% 0.034 25.723);
-  --color-gray-950: oklch(13% 0.028 26.042);
-} */
+/* @import "tailwindcss";
+@source "../../../Pages";
 
 @layer base {
   a {
@@ -82,7 +56,6 @@
 
   .item-list-row {
     @apply col-span-full grid grid-cols-subgrid relative 
-    /*after:absolute after:border-b after:border-gray-400 after:left-0 after:right-0 after:-bottom-2 last:after:hidden*/
   }
 
   .editing {  
@@ -152,13 +125,11 @@
 }
 
 ::part(region-content sx-song) {
-  /* font-weight: bold; */
   padding-top: 0;
   padding-bottom: 0;
 }
 
 ::part(region-content sx-section) {
-  /* font-weight: bold; */
   padding-top: 0;
   padding-bottom: 0;
   position: absolute;
@@ -240,4 +211,4 @@
 
 ::part(region-content sx-current) {
   font-weight: bold;
-}
+} */
