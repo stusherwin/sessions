@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
-import tailwindcss from '@tailwindcss/vite'
+// import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   base: '/dist/',
@@ -19,7 +19,7 @@ export default defineConfig({
     port: 5174,
   },
   plugins: [
-    tailwindcss(),
+    // tailwindcss(),
   ],
   // Optional: Silence Sass deprecation warnings. See note below.
   css: {
