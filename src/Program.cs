@@ -15,7 +15,7 @@ public class Program
 
         services.AddRazorPages();
         services.AddOpenApi();
-        // services.AddAntiforgery();
+        services.AddAntiforgery();
         services.AddHostedService<QueuedHostedService>();
         services.AddSingleton<IBackgroundTaskQueue>(ctx =>
             new BackgroundTaskQueue(100));
@@ -47,7 +47,7 @@ public class Program
         
         app.UseHttpsRedirection();
 
-        // app.UseAntiforgery();
+        app.UseAntiforgery();
         app.MapRazorPages();
 
         app.MapGet("/api/sessions", (SessionHandler sessions) => 
@@ -80,8 +80,7 @@ public class Program
 
         app.MapPost("/api/backups", (IFormFile upload, BackupsHandler backups) => 
             backups.ProcessBackupFile(upload).ToHttp())
-        .WithName("PostBackup")
-        .DisableAntiforgery();
+        .WithName("PostBackup");
 
         app.MapPost("/api/backups/create", (BackupsHandler backups) => 
             backups.CreateBackup().ToHttp())
