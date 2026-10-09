@@ -78,8 +78,11 @@ public class Program
             backups.StreamBackupFile(backupId).ToHttp())
         .WithName("GetBackup");
 
-        app.MapPost("/api/backups", (IFormFile upload, BackupsHandler backups) => 
-            backups.ProcessBackupFile(upload).ToHttp())
+        app.MapPost("/api/backups", async (IFormFile upload, BackupsHandler backups) =>
+        {
+            Console.WriteLine("GOT HERE");
+            var result = await backups.ProcessBackupFile(upload).ToHttp();
+        })
         .WithName("PostBackup")
         .DisableAntiforgery();
 
