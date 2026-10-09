@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SpaServices.ReactDevelopmentServer;
 
@@ -34,6 +35,13 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
+        } else
+        {
+            Console.WriteLine("Using ForwardedHeaders");
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            });
         }
 
         // app.UseHttpsRedirection();
