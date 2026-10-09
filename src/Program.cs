@@ -79,12 +79,8 @@ public class Program
         .WithName("GetBackup");
 
         app.MapPost("/api/backups", async (IFormFile upload, BackupsHandler backups) =>
-        {
-            Console.WriteLine("GOT HERE");
-            var result = await backups.ProcessBackupFile(upload).ToHttp();
-        })
-        .WithName("PostBackup")
-        .DisableAntiforgery();
+            backups.ProcessBackupFile(upload).ToHttp())
+        .WithName("PostBackup");
 
         app.MapPost("/api/backups/create", (BackupsHandler backups) => 
             backups.CreateBackup().ToHttp())

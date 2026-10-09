@@ -1,4 +1,4 @@
-/* @import "tailwindcss";
+@import "tailwindcss";
 @source "../../../Pages";
 
 @layer base {
@@ -211,4 +211,4 @@
 
 ::part(region-content sx-current) {
   font-weight: bold;
-} */
+}
