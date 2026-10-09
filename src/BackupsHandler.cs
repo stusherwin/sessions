@@ -34,16 +34,22 @@ public class BackupsHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
     }
 
     public Task<Result<Backup>> ProcessBackupFile(IFormFile upload)
-    {        
+    {
+        Console.WriteLine($"Processing uploaded backup file: {upload.FileName}");
+
         var backup = NewBackup(upload);
         var progress = new ChannelProgress<BackupProgress>(backup.Id, 0, channel, new());
+
+        Console.WriteLine($"Uploading to: {backup.FilePath}");
 
         return File.UploadFileAsync(upload, backup.FilePath)
             .ThenAsync<Void, Backup>(async () => 
             {
+                Console.WriteLine($"Uploading to: {backup.FilePath}");
                 progress.Report(100);            
                 return new OkResult<Backup>(backup);
-            });
+            })
+            .Else(error => Console.WriteLine($"Error: {error}"));
     }
 
     public Task<Result<Void>> RestoreBackup(string backupId)
@@ -70,7 +76,7 @@ public class BackupsHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
         var backups = Directory.GetFiles(FileSystem.Backups)
             .SelectMany<string, Backup>(f => 
             {
-                var match = filenamePattern.Match(f);
+                var  match = filenamePattern.Match(f);
                 if(!match.Success)
                 {
                     return [];

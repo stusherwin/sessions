@@ -10,6 +10,10 @@ public abstract record Result<T>
     public abstract Task<Result<U>> ThenAsync<U>(Func<T, Task<Result<U>>> func);
     public abstract Result<U> Then<U>(Func<Result<U>> func);
     public abstract Task<Result<U>> ThenAsync<U>(Func<Task<Result<U>>> func);
+    public abstract Result<T> Else(Func<string, Result<T>> func);
+    public abstract Task<Result<T>> ElseAsync(Func<string, Task<Result<T>>> func);
+    public abstract Result<T> Else(Action<string> func);
+    public abstract Task<Result<T>> ElseAsync(Func<string, Task> func);
 }
 
 public record NotFoundResult<T>(string Message) : Result<T>
@@ -37,6 +41,24 @@ public record NotFoundResult<T>(string Message) : Result<T>
     
     public override Task<Result<U>> ThenAsync<U>(Func<Task<Result<U>>> func) 
         => Task.FromResult<Result<U>>(new NotFoundResult<U>(Message));
+
+    public override Result<T> Else(Func<string, Result<T>> func) 
+        => func(Message);
+    
+    public override Task<Result<T>> ElseAsync(Func<string, Task<Result<T>>> func)
+        => func(Message);
+
+    public override Result<T> Else(Action<string> func)
+    {
+        func(Message);
+        return this;
+    }
+
+    public override async Task<Result<T>> ElseAsync(Func<string, Task> func)
+    {
+        await func(Message);
+        return this;
+    }
 }
 
 public record ErrorResult<T>(string Message) : Result<T>
@@ -64,6 +86,24 @@ public record ErrorResult<T>(string Message) : Result<T>
 
     public override Task<Result<U>> ThenAsync<U>(Func<Task<Result<U>>> func)
         => Task.FromResult<Result<U>>(new ErrorResult<U>(Message));
+
+    public override Result<T> Else(Func<string, Result<T>> func) 
+        => func(Message);
+    
+    public override Task<Result<T>> ElseAsync(Func<string, Task<Result<T>>> func)
+        => func(Message);
+
+    public override Result<T> Else(Action<string> func)
+    {
+        func(Message);
+        return this;
+    }
+
+    public override async Task<Result<T>> ElseAsync(Func<string, Task> func)
+    {
+        await func(Message);
+        return this;
+    }
 }
 
 public record OkResult<T>(T Value) : Result<T>
@@ -103,9 +143,22 @@ public record OkResult<T>(T Value) : Result<T>
         var result = await func();
         return result;
     }
+
+    public override Result<T> Else(Func<string, Result<T>> func) 
+        => this;
+    
+    public override Task<Result<T>> ElseAsync(Func<string, Task<Result<T>>> func)
+        => Task.FromResult<Result<T>>(this);
+
+    public override Result<T> Else(Action<string> func)
+        => this;
+
+    public override Task<Result<T>> ElseAsync(Func<string, Task> func)
+        => Task.FromResult<Result<T>>(this);
 }
 
-public record OkResult() : OkResult<Void>(new Void());
+public record OkResult() 
+    : OkResult<Void>(new Void());
 
 public record FileStreamResult(FileStream Stream, string ContentType, string FileName) 
     : OkResult<FileStreamData>(new FileStreamData(Stream, ContentType, FileName));

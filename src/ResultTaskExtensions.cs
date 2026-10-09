@@ -68,4 +68,36 @@ public static class ResultTaskExtensions
 
         return thenResult;
     }
+
+    public static async Task<Result<T>> Else<T>(this Task<Result<T>> resultTask, Func<string, Result<T>> func)
+    {
+        var result = await resultTask;
+        var elseResult = result.Else(func);
+
+        return elseResult;
+    }
+
+    public static async Task<Result<T>> ElseAsync<T>(this Task<Result<T>> resultTask, Func<string, Task<Result<T>>> func)
+    {
+        var result = await resultTask;
+        var elseResult = await result.ElseAsync(func);
+
+        return elseResult;
+    }
+
+    public static async Task<Result<T>> Else<T>(this Task<Result<T>> resultTask, Action<string> func)
+    {
+        var result = await resultTask;
+        var elseResult = result.Else(func);
+
+        return elseResult;
+    }
+
+    public static async Task<Result<T>> ElseAsync<T>(this Task<Result<T>> resultTask, Func<string, Task> func)
+    {
+        var result = await resultTask;
+        var elseResult = await result.ElseAsync(func);
+
+        return elseResult;
+    }
 }

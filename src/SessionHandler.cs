@@ -64,6 +64,8 @@ public class SessionHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
         {
             await taskQueue.QueueBackgroundWorkItemAsync(async (CancellationToken cancellationToken) =>
             {
+                Console.WriteLine($"Processing sessions...");
+
                 var audioPattern = new Regex(@"session-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\.(mp3|m4a)");
                 foreach(var file in Directory.GetFiles(FileSystem.Audio))
                 {
@@ -90,7 +92,7 @@ public class SessionHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
 
             foreach(var session in sessionData.Sessions)
             {
-                Console.WriteLine($"Session: {session.Id}");
+                Console.WriteLine($"Processing session: {session.Id}");
 
                 string? sourceFilePath = null;
                 var mp3FilePath = FileSystem.AudioFile($"session-{session.Id}.mp3");
@@ -114,7 +116,11 @@ public class SessionHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
                         sourceFilePath = m4aFilePath;
                     }
 
-                    if(sourceFilePath is not null)
+                    if(sourceFilePath is null)
+                    {
+                        Console.WriteLine("Audio file missing.");
+                    }
+                    else 
                     {
                         Console.WriteLine("Adding to queue for reprocessing.");
                         await taskQueue.QueueBackgroundWorkItemAsync(async (CancellationToken cancellationToken) =>
