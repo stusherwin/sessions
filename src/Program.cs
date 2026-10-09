@@ -80,7 +80,8 @@ public class Program
 
         app.MapPost("/api/backups", (IFormFile upload, BackupsHandler backups) => 
             backups.ProcessBackupFile(upload).ToHttp())
-        .WithName("PostBackup");
+        .WithName("PostBackup")
+        .DisableAntiforgery();
 
         app.MapPost("/api/backups/create", (BackupsHandler backups) => 
             backups.CreateBackup().ToHttp())
