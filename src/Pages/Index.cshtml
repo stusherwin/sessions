@@ -19,7 +19,7 @@
   </environment>
 </head>
 <body>
-    <form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data"
+    <frm method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data"
           class="mt-8">
       <h1>Upload backup file</h1>
 
@@ -48,7 +48,7 @@
           Upload
         </button>
       </div>
-    </form>
+    </frm>
 
     <div x-data="app" 
        x-init="$watch('data.sessions', () => data.save()); $watch('data.tunes', () => data.save()); $watch('data.performances', () => data.save())"
