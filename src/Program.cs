@@ -41,7 +41,7 @@ public class Program
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             });
-            
+
             app.UseHsts();
         }
         
