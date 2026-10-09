@@ -1,7 +1,7 @@
 @page
 @model IndexModel
-@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.FormTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers
+@* @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@removeTagHelper Microsoft.AspNetCore.Mvc.TagHelpers.FormTagHelper, Microsoft.AspNetCore.Mvc.TagHelpers *@
 <!doctype html>
 <html lang="en">
 
@@ -49,6 +49,37 @@
         </button>
       </div>
     </frm>
+
+    <!form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data"
+          class="mt-8">
+      <h1>Upload backup file</h1>
+
+      <div class="mt-4">
+        <label class="upload-label icon-btn-text" for="upload-file">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#folder" />
+          </svg>
+          Select backup file
+        </label>
+
+        <input id="upload-file" 
+                name="upload"
+                x-model="fileUpload"
+                type="file" />
+      </div>
+      <div x-show="fileUpload" class="mt-2">
+        Selected file: <span x-text="(fileUpload || '').replace('C:\\fakepath\\', '')"></span>
+      </div>
+
+      <div class="mt-4 button-group">
+        <button type="submit" class="icon-btn-text" :disabled="data.saving">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#upload" />
+          </svg>
+          Upload
+        </button>
+      </div>
+    </!form>
 
     <form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data"
           class="mt-8">
