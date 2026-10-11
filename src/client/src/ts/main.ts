@@ -31,7 +31,7 @@ window.waveform = undefined
 listen('sx:waveform-loading', (data: WaveformData) =>
   setTimeout(() => {
     if(data.session.processed) {
-      window.fetch(new Request(`/api/session/${data.session.id}/peaks`))
+      window.fetch(new Request(`${location.pathname}/api/session/${data.session.id}/peaks`))
         .then((response) => {
           if(!response.ok) { 
               throw new Error('JSON file not found');
@@ -53,7 +53,7 @@ listen('sx:waveform-unloading', (sessionId: string) => {
   }
 })
 
-const eventSource = new EventSource('/api/tasks/progress');
+const eventSource = new EventSource(`${location.pathname}/api/tasks/progress`);
 
 eventSource.addEventListener('task-progress', (event) => {
   const payload = JSON.parse(event.data)

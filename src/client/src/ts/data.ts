@@ -50,7 +50,7 @@ export class AppDataManager implements AppData {
   saveDebounced: (() => void) | undefined = undefined
 
   load(callback: (() => void) | undefined = undefined) { log(arguments)()
-    window.fetch(new Request("/api/sessions"))
+    window.fetch(new Request(`${location.pathname}/api/sessions`))
       .then((response) => {
         if(!response.ok) { 
             throw new Error('JSON file not found');
@@ -88,7 +88,7 @@ export class AppDataManager implements AppData {
         this.error = true
       })
       .finally(() => {
-        window.fetch(new Request("/api/backups"))
+        window.fetch(new Request(`${location.pathname}/api/backups`))
           .then((response) => {
             if(!response.ok) { 
                 throw new Error('JSON file not found');
@@ -238,7 +238,7 @@ export class AppDataManager implements AppData {
 
         log(this.sessions)();
 
-        window.fetch("/api/sessions", { method: 'POST', body: JSON.stringify({
+        window.fetch(`${location.pathname}/api/sessions`, { method: 'POST', body: JSON.stringify({
           sessions: this.sessions,
           tunes: this.tunes,
           performances: this.performances
@@ -275,7 +275,7 @@ export class AppDataManager implements AppData {
     this.saving = true
     this.error = false
 
-    return window.fetch("/api/session", { method: 'POST', body: formData })
+    return window.fetch(`${location.pathname}/api/session`, { method: 'POST', body: formData })
       .then(async (response) => {
         log(response)()
 
@@ -308,7 +308,7 @@ export class AppDataManager implements AppData {
     this.saving = true
     this.error = false
 
-    return window.fetch("/api/backups", { method: 'POST', body: formData })
+    return window.fetch(`${location.pathname}/api/backups`, { method: 'POST', body: formData })
       .then(async (response) => {
         log(response)()
 
@@ -342,7 +342,7 @@ export class AppDataManager implements AppData {
     this.saving = true
     this.error = false
 
-    return window.fetch(`/api/backups/restore/${backupId}`, { method: 'POST', body: formData })
+    return window.fetch(`./api/backups/restore/${backupId}`, { method: 'POST', body: formData })
       .then(async (response) => {
         log(response)()
 
@@ -370,7 +370,7 @@ export class AppDataManager implements AppData {
     this.saving = true
     this.error = false
 
-    return window.fetch("/api/backups/create", { method: 'POST', body: formData })
+    return window.fetch(`${location.pathname}/api/backups/create`, { method: 'POST', body: formData })
       .then(async (response) => {
         log(response)()
 

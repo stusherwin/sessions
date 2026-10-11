@@ -65,7 +65,7 @@
             <li class="item-list-row">
               <template x-if="backup.processed">
                 <div>
-                  <a :href="`/api/backups/${backup.id}`" x-text="formatDate(backup.date)"></a>
+                  <a :href="`api/backups/${backup.id}`" x-text="formatDate(backup.date)"></a>
                   <span x-text="Math.round(backup.size) + ' MB'"></span>
                   <!form method="post" @@submit.prevent="restoreBackup($event.target, backup.id)" enctype="multipart/form-data">
                     <button type="submit" class="icon-btn-text" :disabled="data.saving">
