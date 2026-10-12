@@ -367,15 +367,37 @@ export class RegionManager {
     }
 
     function lock(region: Region | undefined, side: string) { log(arguments)()
-      region?.element?.part.add('sx-locked-' + side)
-      var handle = region?.element?.querySelector('::part(region-handle-' + side + ')')
-      handle?.part.add('sx-locked')
+      if(!side) {
+        console.log('side is null somehow')
+        return
+      }
+
+      if(region && region.element) {
+        if(region.element.part) {
+          region.element.part.add('sx-locked-' + side)
+        }
+        var handle = region.element.querySelector('::part(region-handle-' + side + ')')
+        if(handle) {
+          handle.part.add('sx-locked')
+        }
+      }
     }
 
     function unlock(region: Region | undefined, side: string) { log(arguments)()
-      region?.element?.part.remove('sx-locked-' + side)
-      var handle = region?.element?.querySelector('::part(region-handle-' + side + ')')
-      handle?.part.remove('sx-locked')
+      if(!side) {
+        console.log('side is null somehow')
+        return
+      }
+
+      if(region && region.element) {
+        if(region.element.part) {
+          region.element.part.remove('sx-locked-' + side)
+        }
+        var handle = region.element.querySelector('::part(region-handle-' + side + ')')
+        if(handle) {
+          handle.part.remove('sx-locked')
+        }
+      }
     }
 
     if(performance.prevNeighbour) {
@@ -400,7 +422,6 @@ export class RegionManager {
     this.performances.in(region.id)
     var current = this.performances.getCurrent()
     
-
     for(var performance of this.performances) {
       var r = this.findRegion(performance.id)
       var el = r?.element

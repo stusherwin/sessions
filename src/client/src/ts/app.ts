@@ -97,7 +97,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.editing = false
 
     var performances = this.data.performances.filter(p => p.sessionId == sessionId)
-    this.$dispatch('sx:waveform-loading', { session: session, performances, performanceId })
+    this.$dispatch('sx:waveform-loading', { session, performances, performanceId })
   },
 
   loadTune(tuneId: string) { log(arguments)()
@@ -257,6 +257,11 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   deletePerformance(performanceId: string) { log(arguments)()
+    var performance = this.data.findPerformance(performanceId)
+    if(!performance) {
+      return
+    }
+    
     this.data.deletePerformance(performanceId)
     
     if(this.pageState.page == 'session') {

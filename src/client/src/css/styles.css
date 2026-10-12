@@ -101,6 +101,7 @@
 
 ::part(scroll) {
   padding: 30px 0;
+  /* overflow: hidden; */
 }
 
 ::part(regions-container) {
@@ -109,9 +110,23 @@
   height: unset;
 }
 
+::part(region) {
+  top: 30px;
+  bottom: 30px;
+  height: unset;
+  border-radius: 0;
+  border: none;
+  background: rgba(255 0 0 / 0.2);
+  pointer-events: none;
+}
+
+::part(region sx-current) {
+  background: rgba(255 0 0 / 0.45);
+}
+
 ::part(region-content) {
   position: absolute;
-  top: calc(0 - 30px - 6px);
+  top: -28px; /*calc(0 - 30px - 6px); - why?*/
   margin-top: 0;
   left: 0;
   right: 0;
@@ -122,6 +137,11 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  z-index: 3;
+}
+
+::part(region-content sx-current) {
+  font-weight: bold;
 }
 
 ::part(region-content sx-song) {
@@ -134,19 +154,6 @@
   padding-bottom: 0;
   position: absolute;
   bottom: 0;
-}
-
-::part(region) {
-  top: 30px;
-  bottom: 30px;
-  height: unset;
-  border-radius: 0;
-  border: none;
-  background: rgba(255 0 0 / 0.2);
-}
-
-::part(region sx-current) {
-  background: rgba(255 0 0 / 0.45);
 }
 
 ::part(region)::before,
@@ -176,39 +183,49 @@
   border-right: none;
 }
 
-::part(region-handle) {
+::part(sx-editable region) {
+  background: rgba(255 0 0 / 0.3);
+  pointer-events: all;
+}
+
+::part(sx-editable region)::before,
+::part(sx-editable region)::after {
+  border-color: white;
+}
+
+::part(sx-editable region sx-current) {
+  background: rgba(255 0 0 / 0.55);
+}
+
+::part(sx-editable region-handle) {
   background: none;
   border: none;
   border-radius: 0;
   width: 20px;
   cursor: default;
-}
-
-::part(region-handle-left) {
-  left: calc(0 - (20px / 2));
-}
-
-::part(region-handle-right) {
-  right: calc(0 - (20px / 2));
-}
-
-::part(region-handle sx-editable) {
+  height: unset;
+  top: -30px;
+  bottom: -30px;
   cursor: ew-resize;
 }
 
-::part(region sx-editable) {
-  background: rgba(255 0 0 / 0.3);
+::part(sx-editable region-handle-left) {
+  left: calc(0 - (20px / 2));
 }
 
-::part(region sx-editable sx-current) {
-  background: rgba(255 0 0 / 0.55);
+::part(sx-editable region-handle-right) {
+  right: calc(0 - (20px / 2));
 }
 
-::part(region sx-editable)::before,
-::part(region sx-editable)::after {
-  border-color: white;
+/* ::part(region-handle-left sx-editable) {
+  border-left: 2px solid white;
 }
 
-::part(region-content sx-current) {
-  font-weight: bold;
+::part(region-handle-right sx-editable) {
+  border-right: 2px solid white;
+} */
+
+::part(region-handle-left sx-editable):hover,
+::part(region-handle-right sx-editable):hover  {
+  background: rgba(255 0 0 / 0.2);
 }

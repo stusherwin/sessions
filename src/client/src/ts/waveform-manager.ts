@@ -16,10 +16,11 @@ export class WaveformManager {
   private regionManager: RegionManager
   private ws: WaveSurfer
   private subscriptions: (() => void)[] = []
-  private zoomTimeout :  number | undefined = undefined
+  private zoomTimeout : number | undefined = undefined
   private zooming = false
   private editing = false
-  private scrollPosition: number | undefined = undefined
+  private scrollEnableTimeout: number | undefined = undefined
+  // private scrollPosition: number | undefined = undefined
   private container: HTMLElement
 
   constructor(data: WaveformData, peaks: number[][] | undefined) { log(arguments)()
@@ -38,6 +39,7 @@ export class WaveformManager {
       peaks: peaks,
       duration: data.session.duration
     })
+    this.container.addEventListener('contextmenu', event => event.preventDefault());
 
     const subscribe = (unsubscribe: () => void) => this.subscriptions.push(unsubscribe)
 
@@ -47,7 +49,7 @@ export class WaveformManager {
     subscribe(this.ws.on('play', this.onWsPlay.bind(this)))
     subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
     subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
-    subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
+    // subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
     subscribe(this.ws.on('click', (x, y) => log(x, y)()))
     subscribe(this.ws.on('interaction', (t) => { log(t)(); this.ws.setTime(t); log(this.ws.getCurrentTime())(); }))
     subscribe(listen('sx:play-pause', this.onAppPlayPause.bind(this)))
@@ -90,16 +92,16 @@ export class WaveformManager {
     if(span) {
       log(span)()
       this.ws.setTime(span.startTime + 0.00000001)
-      var duration = span.endTime - span.startTime
+      // var duration = span.endTime - span.startTime
 
-      setTimeout(() => {
-        var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
-        var targetLevel = width / duration / 3
-        this.zooming = true
-        clearTimeout(this.zoomTimeout)
-        this.ws.zoom(targetLevel)
-        this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
-      })
+      // setTimeout(() => {
+      //   var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+      //   var targetLevel = width / duration / 3
+      //   this.zooming = true
+      //   clearTimeout(this.zoomTimeout)
+      //   this.ws.zoom(targetLevel)
+      //   this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+      // })
     }
   }
 
@@ -115,12 +117,12 @@ export class WaveformManager {
     dispatch('sx:stopped', {}) 
   }
   
-  private onWsScroll() { log(arguments)()
-    if(!this.zooming && this.editing && this.scrollPosition) {
-      this.ws.setScroll(this.scrollPosition)
-      return;
-    }
-  }
+  // private onWsScroll() { log(arguments)()
+  //   if(!this.zooming && this.editing && this.scrollPosition) {
+  //     this.ws.setScroll(this.scrollPosition)
+  //     return;
+  //   }
+  // }
 
   private onAppPlayPause() { log(arguments)()
     this.ws.playPause();
@@ -154,10 +156,10 @@ export class WaveformManager {
   }
 
   private onAppZoomIn() { log(arguments)()
-    var currentScroll = this.ws.getScroll()
-    var total = this.ws.getWrapper().scrollWidth
-    var mid = currentScroll + this.ws.getWidth() / 2
-    var percent = (mid / total)
+    // var currentScroll = this.ws.getScroll()
+    // var total = this.ws.getWrapper().scrollWidth
+    // var mid = currentScroll + this.ws.getWidth() / 2
+    // var percent = (mid / total)
     var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
     var duration = this.ws.getDuration()
     var zoomedOut = width / duration
@@ -166,21 +168,26 @@ export class WaveformManager {
     this.zooming = true
     clearTimeout(this.zoomTimeout)
     this.ws.zoom(targetLevel)
-    var newTotal = this.ws.getWrapper().scrollWidth
-    var newMid = percent * newTotal
-    var newScroll = newMid - this.ws.getWidth() / 2
-    if(this.editing) {
-      this.scrollPosition = newScroll
-    }
-    this.ws.setScroll(newScroll)
+    // var newTotal = this.ws.getWrapper().scrollWidth
+    // var newMid = percent * newTotal
+    // var newScroll = newMid - this.ws.getWidth() / 2
+    // if(this.editing) {
+    //   this.scrollPosition = newScroll
+    // }
+    // this.ws.setScroll(newScroll)
     this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+
+    var parent = this.ws.getWrapper().parentElement
+    if(parent) {
+      parent.style.overflowX = this.editing ? 'hidden' : 'auto'
+    }
   }
 
   private onAppZoomOut() { log(arguments)()
-    var currentScroll = this.ws.getScroll()
-    var total = this.ws.getWrapper().scrollWidth
-    var mid = currentScroll + this.ws.getWidth() / 2
-    var percent = (mid / total)
+    // var currentScroll = this.ws.getScroll()
+    // var total = this.ws.getWrapper().scrollWidth
+    // var mid = currentScroll + this.ws.getWidth() / 2
+    // var percent = (mid / total)
     var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
     var duration = this.ws.getDuration()
     var zoomedOut = width / duration
@@ -189,19 +196,28 @@ export class WaveformManager {
     this.zooming = true
     clearTimeout(this.zoomTimeout)
     this.ws.zoom(targetLevel)
-    var newTotal = this.ws.getWrapper().scrollWidth
-    var newMid = percent * newTotal
-    var newScroll = newMid - this.ws.getWidth() / 2
-    if(this.editing) {
-      this.scrollPosition = newScroll
-    }
-    this.ws.setScroll(newScroll)
+    // var newTotal = this.ws.getWrapper().scrollWidth
+    // var newMid = percent * newTotal
+    // var newScroll = newMid - this.ws.getWidth() / 2
+    // if(this.editing) {
+    //   this.scrollPosition = newScroll
+    // }
+    // this.ws.setScroll(newScroll)
     this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+    
+    var parent = this.ws.getWrapper().parentElement
+    if(parent) {
+      parent.style.overflowX = this.editing ? 'hidden' : 'auto'
+    }
   }
 
   private onAppEditingStart() { log(arguments)()
+    if(this.scrollEnableTimeout) {
+      clearTimeout(this.scrollEnableTimeout)
+    }
+
     this.editing = true
-    this.scrollPosition = this.ws.getScroll()
+    // this.scrollPosition = this.ws.getScroll()
 
     this.ws.setOptions({
       autoScroll: false,
@@ -219,20 +235,25 @@ export class WaveformManager {
 
   private onAppEditingStop() { log(arguments)()
     this.ws.setOptions({
-      autoScroll: true,
       waveColor: 'black',
       progressColor: 'black',
       cursorColor: 'red'
     })
 
     // this.container.classList.remove('inverted')
-    var parent = this.ws.getWrapper().parentElement
-    if(parent) {
-      parent.style.overflowX = 'auto'
-    }
-
-    this.scrollPosition = undefined
+    // this.scrollPosition = undefined
     this.editing = false
+
+    this.scrollEnableTimeout = setTimeout(() => {
+      this.ws.setOptions({
+        autoScroll: true,
+      })
+      var parent = this.ws.getWrapper().parentElement
+      if(parent) {
+        parent.style.overflowX = 'auto'
+      }
+      this.scrollEnableTimeout = undefined
+    } , 2000);
   }
     
   private onAppCurrentPerformanceChanged(details: {
@@ -250,36 +271,36 @@ export class WaveformManager {
         return
       }
 
-      var performanceDuration = details.endTime - details.startTime
-      // var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
-      // var duration = this.ws.getDuration()
+      // var performanceDuration = details.endTime - details.startTime
+      // // var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+      // // var duration = this.ws.getDuration()
       
-      var total = this.ws.getWrapper().scrollWidth
-      var targetLevel = total / performanceDuration
-      this.ws.zoom(targetLevel)
-
-      // var currentScroll = this.ws.getScroll()
       // var total = this.ws.getWrapper().scrollWidth
-      // var mid = currentScroll + this.ws.getWidth() / 2
-      // var percent = (mid / total)
-      // var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
-
-      // var duration = this.ws.getDuration()
-      // var zoomedOut = width / duration
-      // var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
-
-      // var targetLevel = Math.min(width, currentLevel * 2)
-      // this.zooming = true
-      // clearTimeout(this.zoomTimeout)
+      // var targetLevel = total / performanceDuration
       // this.ws.zoom(targetLevel)
-      // var newTotal = this.ws.getWrapper().scrollWidth
-      // var newMid = percent * newTotal
-      // var newScroll = newMid - this.ws.getWidth() / 2
-      // if(this.editing) {
-      //   this.scrollPosition = newScroll
-      // }
-      // this.ws.setScroll(newScroll)
-      // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+
+      // // var currentScroll = this.ws.getScroll()
+      // // var total = this.ws.getWrapper().scrollWidth
+      // // var mid = currentScroll + this.ws.getWidth() / 2
+      // // var percent = (mid / total)
+      // // var width = Math.floor(this.container.getBoundingClientRect().width || Number.MAX_VALUE)
+
+      // // var duration = this.ws.getDuration()
+      // // var zoomedOut = width / duration
+      // // var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
+
+      // // var targetLevel = Math.min(width, currentLevel * 2)
+      // // this.zooming = true
+      // // clearTimeout(this.zoomTimeout)
+      // // this.ws.zoom(targetLevel)
+      // // var newTotal = this.ws.getWrapper().scrollWidth
+      // // var newMid = percent * newTotal
+      // // var newScroll = newMid - this.ws.getWidth() / 2
+      // // if(this.editing) {
+      // //   this.scrollPosition = newScroll
+      // // }
+      // // this.ws.setScroll(newScroll)
+      // // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
 
     }
   }
