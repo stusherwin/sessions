@@ -70,11 +70,11 @@ public class SessionHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
                 foreach(var file in Directory.GetFiles(FileSystem.Audio))
                 {
                     var match = audioPattern.Match(file);
-                    if(!match.Success || !sessionData.Sessions.Any(s => s.Id == match.Groups[1].Value))
-                    {
-                        Console.WriteLine($"Deleting file: {file}");
-                        System.IO.File.Delete(file);
-                    }
+                    // if(!match.Success || !sessionData.Sessions.Any(s => s.Id == match.Groups[1].Value))
+                    // {
+                    //     Console.WriteLine($"Deleting file: {file}");
+                    //     System.IO.File.Delete(file);
+                    // }
                 }
 
                 var peaksPattern = new Regex(@"peaks-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\.json");
@@ -82,11 +82,11 @@ public class SessionHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
                 foreach(var file in Directory.GetFiles(FileSystem.Data))
                 {
                     var match = peaksPattern.Match(file);
-                    if(!sessionsPattern.IsMatch(file) && (!match.Success || !sessionData.Sessions.Any(s => s.Id == match.Groups[1].Value)))
-                    {
-                        Console.WriteLine($"Deleting file: {file}");
-                        System.IO.File.Delete(file);
-                    }
+                    // if(!sessionsPattern.IsMatch(file) && (!match.Success || !sessionData.Sessions.Any(s => s.Id == match.Groups[1].Value)))
+                    // {
+                    //     Console.WriteLine($"Deleting file: {file}");
+                    //     System.IO.File.Delete(file);
+                    // }
                 }
             });
 
@@ -182,19 +182,19 @@ public class SessionHandler(Channel<TaskProgress> channel, IBackgroundTaskQueue 
         });
     }
 
-    private Task<Result<Void>> DeleteSessionAsync(Session session)
-    {
-        var sessionId = session.Id;
-        return GetSessions().ThenAsync(async sessionData =>
-        {
-            var existingSession = sessionData.Sessions.FirstOrDefault(s => s.Id == sessionId);
+    // private Task<Result<Void>> DeleteSessionAsync(Session session)
+    // {
+    //     var sessionId = session.Id;
+    //     return GetSessions().ThenAsync(async sessionData =>
+    //     {
+    //         var existingSession = sessionData.Sessions.FirstOrDefault(s => s.Id == sessionId);
 
-            if(existingSession is not null)
-            {
-                sessionData.Sessions.Remove(existingSession);
-            }
+    //         if(existingSession is not null)
+    //         {
+    //             sessionData.Sessions.Remove(existingSession);
+    //         }
         
-            return await WriteSessions(sessionData);                  
-        });
-    }
+    //         return await WriteSessions(sessionData);                  
+    //     });
+    // }
 }
