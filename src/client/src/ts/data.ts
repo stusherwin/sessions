@@ -342,7 +342,7 @@ export class AppDataManager implements AppData {
     this.saving = true
     this.error = false
 
-    return window.fetch(`./api/backups/restore/${backupId}`, { method: 'POST', body: formData })
+    return window.fetch(`${location.pathname}/api/backups/restore/${backupId}`, { method: 'POST', body: formData })
       .then(async (response) => {
         log(response)()
 
