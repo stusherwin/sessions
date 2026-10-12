@@ -16,8 +16,8 @@ export class WaveformManager {
   private regionManager: RegionManager
   private ws: WaveSurfer
   private subscriptions: (() => void)[] = []
-  private zoomTimeout : number | undefined = undefined
-  private zooming = false
+  // private zoomTimeout : number | undefined = undefined
+  // private zooming = false
   private editing = false
   private scrollEnableTimeout: number | undefined = undefined
   // private scrollPosition: number | undefined = undefined
@@ -165,8 +165,8 @@ export class WaveformManager {
     var zoomedOut = width / duration
     var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
     var targetLevel = Math.min(width, currentLevel * 2)
-    this.zooming = true
-    clearTimeout(this.zoomTimeout)
+    // this.zooming = true
+    // clearTimeout(this.zoomTimeout)
     this.ws.zoom(targetLevel)
     // var newTotal = this.ws.getWrapper().scrollWidth
     // var newMid = percent * newTotal
@@ -175,7 +175,7 @@ export class WaveformManager {
     //   this.scrollPosition = newScroll
     // }
     // this.ws.setScroll(newScroll)
-    this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+    // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
 
     var parent = this.ws.getWrapper().parentElement
     if(parent) {
@@ -193,8 +193,8 @@ export class WaveformManager {
     var zoomedOut = width / duration
     var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
     var targetLevel = Math.max(zoomedOut, currentLevel / 2)
-    this.zooming = true
-    clearTimeout(this.zoomTimeout)
+    // this.zooming = true
+    // clearTimeout(this.zoomTimeout)
     this.ws.zoom(targetLevel)
     // var newTotal = this.ws.getWrapper().scrollWidth
     // var newMid = percent * newTotal
@@ -203,7 +203,7 @@ export class WaveformManager {
     //   this.scrollPosition = newScroll
     // }
     // this.ws.setScroll(newScroll)
-    this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
+    // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
     
     var parent = this.ws.getWrapper().parentElement
     if(parent) {
