@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @source "../../../Pages";
-
+@source inline("bg-white/{0..100..5}");
+@source inline("shadow-{2xs,xs,sm,md,lg,xl,2xl}");
+@source inline("shadow-white/{0..100..5}");
+@source inline("rounded");
+@source inline("{-,}{p,m}{,x,y,t,b,l,r}-{0..100..1}");
+@source inline("{-,}{top,bottom,left,right}-{0..100..1}");
 @layer base {
   a {
     @apply text-red-700;
