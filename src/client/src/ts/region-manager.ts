@@ -13,6 +13,8 @@ export class RegionManager {
   private initialPerformanceId: string | undefined
   private regions: RegionsPlugin
   private editing: boolean = false
+  private playing: boolean = false
+  private tuneMode: boolean = false
   private subscriptions: (() => void)[] = []
   private disableDragSelection : (() => void) | undefined = undefined
 
@@ -65,6 +67,10 @@ export class RegionManager {
     subscribe(listen('sx:performance-deleted', this.onAppPerformanceDeleted.bind(this)))
     subscribe(listen('sx:editing-start', this.onAppEditingStart.bind(this)))
     subscribe(listen('sx:editing-stop', this.onAppEditingStop.bind(this)))
+    subscribe(listen('sx:tune-mode-start', this.onAppTuneModeStart.bind(this)))
+    subscribe(listen('sx:tune-mode-stop', this.onAppTuneModeStop.bind(this)))
+    subscribe(listen('sx:playing-start', this.onAppPlayingStart.bind(this)))
+    subscribe(listen('sx:playing-stop', this.onAppPlayingStop.bind(this)))
   }
 
   unload() { log(arguments)()
@@ -242,6 +248,22 @@ export class RegionManager {
     }
 
     this.editing = false
+  }
+
+  private onAppTuneModeStart() { log(arguments)()
+    this.tuneMode = true
+  }
+
+  private onAppTuneModeStop() { log(arguments)()
+    this.tuneMode = false
+  }
+
+  private onAppPlayingStart() { log(arguments)()
+    this.playing = true
+  }
+
+  private onAppPlayingStop() { log(arguments)()
+    this.playing = false
   }
 
   private onRegionInitialized(region: Region) { log(arguments)()
@@ -478,6 +500,19 @@ export class RegionManager {
           el.part.remove('sx-current')
           for(var j = 0; j < el.children.length; j++) {
             el.children[j].part.remove('sx-current')
+          }
+        }
+      }
+    }
+
+    if(this.playing) {
+      if(this.tuneMode) {
+        if(!current && oldCurrent) {
+          if(oldCurrent.nextNeighbour) {
+            var r = this.findRegion(oldCurrent.nextNeighbour.performance.id)
+            if(r) {
+              r.play()
+            }
           }
         }
       }

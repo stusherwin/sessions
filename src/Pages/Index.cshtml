@@ -355,10 +355,18 @@
                       <use href="#zoom-out" />
                     </svg>
                   </button>
-                  <button @@click="toggleEditing()" class="shadow-md shadow-black/50 mr-auto">
+                  <button @@click="toggleEditing()" class="shadow-md shadow-black/50">
                     <svg class="bi" width="16" height="16" fill="currentColor">
                       <use href="#pencil-fill" x-show="!editing" />
                       <use href="#x" x-show="editing" />
+                    </svg>
+                  </button>
+                  <button @@click="toggleTuneMode()" class="shadow-md shadow-black/50 mr-auto" :class="{
+                    'bg-gray-300 border-black text-black hover:bg-black hover:border-white hover:text-white': !tuneMode,
+                    'hover:bg-gray-300 hover:border-black hover:text-black bg-black border-white text-white': tuneMode
+                  }">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#music-note-list" />
                     </svg>
                   </button>
                 </div>

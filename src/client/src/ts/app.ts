@@ -25,6 +25,7 @@ interface App {
   pageState: PageState
   playing: boolean
   editing: boolean
+  tuneMode: boolean
   fileUpload: string | undefined
   newSessionName: string | undefined
   taskProgress: { [taskId: string] : number; }
@@ -39,7 +40,6 @@ interface App {
   formatTime: (time: number) => string
   updateTuneName: (sessionId: string, tuneId: string, name: string) => void
   deletePerformance: (performanceId: string) => void
-  playFromStart: () => void
   skipToStart: () => void
   skipToEnd: () => void
   skipBackward: () => void
@@ -48,6 +48,7 @@ interface App {
   zoomIn: () => void
   zoomOut: () => void
   toggleEditing: () => void
+  toggleTuneMode: () => void
   changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
   uploadFile: (form: HTMLFormElement) => void
   uploadBackup: (form: HTMLFormElement) => void
@@ -65,6 +66,7 @@ const App = defineComponent<unknown, App>(() => ({
   pageState: { page: 'sessions' } as PageState,
   playing: false,
   editing: false,
+  tuneMode: false,
   fileUpload: undefined,
   newSessionName: undefined,
   taskProgress: {},
@@ -179,10 +181,6 @@ const App = defineComponent<unknown, App>(() => ({
     return `${hoursPart}:${minutesPart}:${secondsPart}`
   },
 
-  playFromStart() { log(arguments)()
-    this.$dispatch('sx:play-from-start')
-  },
-
   skipToStart() { log(arguments)()
     this.$dispatch('sx:skip-to-start')
   },
@@ -200,7 +198,12 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   playPause() { log(arguments)()
-    this.$dispatch('sx:play-pause')
+    this.playing = !this.playing
+    if(this.playing) {
+        this.$dispatch('sx:playing-start')
+    } else {
+        this.$dispatch('sx:playing-stop')
+    }
   },
 
   zoomIn() { log(arguments)()
@@ -217,6 +220,15 @@ const App = defineComponent<unknown, App>(() => ({
         this.$dispatch('sx:editing-start')
     } else {
         this.$dispatch('sx:editing-stop')
+    }
+  },
+
+  toggleTuneMode() { log(arguments)()
+    this.tuneMode = !this.tuneMode
+    if(this.tuneMode) {
+        this.$dispatch('sx:tune-mode-start')
+    } else {
+        this.$dispatch('sx:tune-mode-stop')
     }
   },
 
@@ -261,7 +273,7 @@ const App = defineComponent<unknown, App>(() => ({
     if(!performance) {
       return
     }
-    
+
     this.data.deletePerformance(performanceId)
     
     if(this.pageState.page == 'session') {

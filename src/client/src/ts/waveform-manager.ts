@@ -52,8 +52,8 @@ export class WaveformManager {
     // subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
     subscribe(this.ws.on('click', (x, y) => log(x, y)()))
     subscribe(this.ws.on('interaction', (t) => { log(t)(); this.ws.setTime(t); log(this.ws.getCurrentTime())(); }))
-    subscribe(listen('sx:play-pause', this.onAppPlayPause.bind(this)))
-    subscribe(listen('sx:play-from-start', this.onAppPlayFromStart.bind(this)))
+    subscribe(listen('sx:playing-start', this.onAppPlayingStart.bind(this)))
+    subscribe(listen('sx:playing-stop', this.onAppPlayingStop.bind(this)))
     subscribe(listen('sx:skip-to-start', this.onAppSkipToStart.bind(this)))
     subscribe(listen('sx:skip-to-end', this.onAppSkipToEnd.bind(this)))
     subscribe(listen('sx:skip-backward', this.onAppSkipBackward.bind(this)))
@@ -124,13 +124,12 @@ export class WaveformManager {
   //   }
   // }
 
-  private onAppPlayPause() { log(arguments)()
-    this.ws.playPause();
+  private onAppPlayingStart() { log(arguments)()
+    this.ws.play();
   }
 
-  private onAppPlayFromStart() { log(arguments)()
-    this.ws.setTime(0);
-    this.ws.play();
+  private onAppPlayingStop() { log(arguments)()
+    this.ws.pause();
   }
 
   private onAppSkipToStart() { log(arguments)()
@@ -301,7 +300,6 @@ export class WaveformManager {
       // // }
       // // this.ws.setScroll(newScroll)
       // // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
-
     }
   }
 }
