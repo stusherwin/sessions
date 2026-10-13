@@ -314,11 +314,11 @@
           Loading: <span x-text="pageState.data.loading"></span>%
         </div>
         <div x-show="pageState.data.ready">
-          <div class="relative">
+          <div class="relative -mx-4 sm:mx-0">
             <div :data-session-id="pageState.data.session.id" class="waveform" :class="{'mt-4': !editing, 'mt-2': editing}"></div>
             <div class="absolute left-0 right-0 bottom-5 z-10">
               <div class="flex">
-                <div class="button-group ml-auto mr-auto px-20 py-3 [background:radial-gradient(ellipse,#fffb_30%,#fff0_60%)]">
+                <div class="button-group ml-auto mr-auto px-2 sm:px-20 py-3 [background:radial-gradient(ellipse,#fffb_30%,#fff0_60%)]">
                   <button @@click="skipToStart()" class="shadow-md shadow-black/50">
                     <svg class="bi" width="16" height="16" fill="currentColor">
                       <use href="#skip-start-fill" />
