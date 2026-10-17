@@ -19,7 +19,9 @@ export class WaveformManager {
   // private zoomTimeout : number | undefined = undefined
   // private zooming = false
   private editing = false
+  private scrolling = false
   private scrollEnableTimeout: number | undefined = undefined
+  private autoScrollEnableTimeout: number | undefined =  undefined
   // private scrollPosition: number | undefined = undefined
   private container: HTMLElement
 
@@ -49,7 +51,7 @@ export class WaveformManager {
     subscribe(this.ws.on('play', this.onWsPlay.bind(this)))
     subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
     subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
-    // subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
+    subscribe(this.ws.on('scroll', this.onWsScroll.bind(this)))
     subscribe(this.ws.on('click', (x, y) => log(x, y)()))
     subscribe(this.ws.on('interaction', (t) => { log(t)(); this.ws.setTime(t); log(this.ws.getCurrentTime())(); }))
     subscribe(listen('sx:playing-start', this.onAppPlayingStart.bind(this)))
@@ -120,12 +122,26 @@ export class WaveformManager {
     dispatch('sx:stopped', {}) 
   }
   
-  // private onWsScroll() { log(arguments)()
-  //   if(!this.zooming && this.editing && this.scrollPosition) {
-  //     this.ws.setScroll(this.scrollPosition)
-  //     return;
-  //   }
-  // }
+  private onWsScroll() { log(arguments)()
+    // TODO: how to distinguish manual scrolling from autoscrolling?
+
+    if(this.autoScrollEnableTimeout) {
+      clearTimeout(this.autoScrollEnableTimeout)
+    }
+
+    if(this.editing) {
+      return
+    }
+
+    this.scrolling = true
+    this.updateScrollState()
+
+    this.autoScrollEnableTimeout = setTimeout(() => {
+      this.autoScrollEnableTimeout = undefined
+      this.scrolling = false
+      this.updateScrollState()
+    }, 2000)
+  }
 
   private onAppPlayingStart() { log(arguments)()
     this.ws.play();
@@ -187,10 +203,7 @@ export class WaveformManager {
     // this.ws.setScroll(newScroll)
     // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
 
-    var parent = this.ws.getWrapper().parentElement
-    if(parent) {
-      parent.style.overflowX = this.editing ? 'hidden' : 'auto'
-    }
+    this.updateScrollState()
   }
 
   private onAppZoomOut() { log(arguments)()
@@ -215,10 +228,7 @@ export class WaveformManager {
     // this.ws.setScroll(newScroll)
     // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
     
-    var parent = this.ws.getWrapper().parentElement
-    if(parent) {
-      parent.style.overflowX = this.editing ? 'hidden' : 'auto'
-    }
+    this.updateScrollState()
   }
 
   private onAppEditingStart() { log(arguments)()
@@ -230,17 +240,13 @@ export class WaveformManager {
     // this.scrollPosition = this.ws.getScroll()
 
     this.ws.setOptions({
-      autoScroll: false,
       waveColor: 'white',
       progressColor: 'white',
       cursorColor: 'red'
     })
 
+    this.updateScrollState()
     // this.container.classList.add('inverted')
-    var parent = this.ws.getWrapper().parentElement
-    if(parent) {
-      parent.style.overflowX = 'hidden'
-    }
   }
 
   private onAppEditingStop() { log(arguments)()
@@ -255,13 +261,7 @@ export class WaveformManager {
     this.editing = false
 
     this.scrollEnableTimeout = setTimeout(() => {
-      this.ws.setOptions({
-        autoScroll: true,
-      })
-      var parent = this.ws.getWrapper().parentElement
-      if(parent) {
-        parent.style.overflowX = 'auto'
-      }
+      this.updateScrollState()
       this.scrollEnableTimeout = undefined
     } , 2000);
   }
@@ -316,5 +316,16 @@ export class WaveformManager {
 
   private onAppSplitCurrentTune() { log(arguments)()
     this.regionManager.splitCurrentTune(this.ws.getCurrentTime())
+  }
+
+  private updateScrollState() { log(arguments)()
+      this.ws.setOptions({
+        autoScroll: !this.editing && !this.scrolling,
+      })
+
+      var parent = this.ws.getWrapper().parentElement
+      if(parent) {
+        parent.style.overflowX = this.editing ? 'hidden' : 'auto'
+      }
   }
 }
