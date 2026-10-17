@@ -150,11 +150,17 @@ export class AppDataManager implements AppData {
   }
 
   performancesForSession(sessionId: string) {
-    return this.performances.filter(p => p.sessionId == sessionId)
+    var ps = this.performances
+      .filter(p => p.sessionId == sessionId)
+    ps.sort((a, b) => a.startTime - b.startTime)
+    return ps
   }
 
   performancesForTune(tuneId: string) {
-    return this.performances.filter(p => p.tuneId == tuneId)
+    var ps = this.performances
+      .filter(p => p.tuneId == tuneId)
+    ps.sort((a, b) => a.sessionId.localeCompare(b.sessionId))
+    return ps
   }
 
   createPerformance(sessionId: string, startTime: number, endTime: number) {

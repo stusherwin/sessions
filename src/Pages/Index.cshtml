@@ -361,12 +361,17 @@
                       <use href="#x" x-show="editing" />
                     </svg>
                   </button>
-                  <button @@click="toggleTuneMode()" class="shadow-md shadow-black/50 mr-auto" :class="{
-                    'bg-gray-300 border-black text-black hover:bg-black hover:border-white hover:text-white': !tuneMode,
-                    'hover:bg-gray-300 hover:border-black hover:text-black bg-black border-white text-white': tuneMode
+                  <button @@click="toggleTuneMode()" class="shadow-md shadow-black/50" :class="{
+                    'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !tuneMode,
+                    'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': tuneMode
                   }">
                     <svg class="bi" width="16" height="16" fill="currentColor">
                       <use href="#music-note-list" />
+                    </svg>
+                  </button>
+                  <button @@click="splitCurrentTune()" class="shadow-md shadow-black/50 mr-auto" x-show="editing" :disabled="!pageState.data.currentPerformance">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#layout-split" />
                     </svg>
                   </button>
                 </div>

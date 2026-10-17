@@ -2,12 +2,13 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import type { Performance } from './data.ts'
 import { PerformanceRegionCollection } from './performance-region-collection.ts'
-import type { PerformanceRegion } from './performance-region-collection.ts'
+import { PerformanceRegion } from './performance-region-collection.ts'
 import { dispatch, listen, log } from './common.ts'
 
 var delta = 5;
 
 export class RegionManager {
+  private splittingTune: string | undefined = undefined
   private sessionId: string
   private performances: PerformanceRegionCollection
   private initialPerformanceId: string | undefined
@@ -95,7 +96,35 @@ export class RegionManager {
       }
     }
   }
-      
+   
+  splitCurrentTune(currentTime: number) { log(arguments)()
+    var p = this.performances.getCurrent();
+    if(!p) {
+      return
+    }
+
+    this.splittingTune = p.id
+
+    let region = this.findRegion(p.id)
+
+    if(!region || currentTime < region.start + 100 || currentTime > region.end - 100) {
+      return
+    }
+
+    var end = p.endTime;
+
+    this.regions.addRegion({start: currentTime, end, id: 'creating'})
+
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: p.id, 
+      startTime: p.startTime, 
+      endTime: currentTime 
+    })
+
+    this.splittingTune = undefined
+  }
+
   private onAppPerformanceCreated(performance: Performance) { log(arguments)()
     if(performance.sessionId != this.sessionId) {
       return
@@ -103,7 +132,7 @@ export class RegionManager {
 
     var region = this.findRegion("creating")
 
-    if(!region) {
+    if(!region) {      
       this.disableDragSelection = this.regions.enableDragSelection({
         // color: 'rgba(206.6, 226, 254.6, 0.5)',
         drag: false
@@ -113,7 +142,12 @@ export class RegionManager {
 
     var p = this.performances.add(performance)
 
-    region.setOptions({ id : performance.id, content: performance.tuneName, start: performance.startTime, end: performance.endTime })
+    region.setOptions({ 
+      id : performance.id, 
+      content: performance.tuneName, 
+      start: performance.startTime, 
+      end: performance.endTime 
+    })
     var el = region.element
     if(el) {
       el.part.add('sx-tune')
@@ -125,6 +159,7 @@ export class RegionManager {
     }
 
     this.updateLockedState(region, p)
+
     dispatch('sx:current-performance-changed', { 
       sessionId: this.sessionId, 
       performanceId: performance.id,
@@ -151,7 +186,16 @@ export class RegionManager {
       return
     }
 
-    region.setOptions({ id : performance.id, content: performance.tuneName })
+    if(this.splittingTune) {
+      this.performances.fix(performance.id, performance.startTime, performance.endTime)
+      p = this.performances.find(performance.id)
+      if(!p) {
+        return
+      }
+    }
+
+    region.setOptions({ id : performance.id, content: performance.tuneName, start: p.startTime, end: p.endTime })
+
     var el = region.element
     if(el) {
       el.part.add('sx-tune')
@@ -174,7 +218,10 @@ export class RegionManager {
         el.part.add('sx-locked-right')
       }
     }
-    p.update(performance.tuneId, performance.tuneName, performance.startTime, performance.endTime)
+
+    if(!this.splittingTune) {
+      p.update(performance.tuneId, performance.tuneName, performance.startTime, performance.endTime)
+    }
   }
 
   private onAppPerformanceDeleted(performance: Performance) { log(arguments)()
@@ -285,6 +332,7 @@ export class RegionManager {
     }
 
     var performance = this.performances.tryCreate(region.start, region.end)
+
     if(!performance) {
       region.remove()
       this.disableDragSelection = this.regions.enableDragSelection({

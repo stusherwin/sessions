@@ -63,6 +63,7 @@ export class WaveformManager {
     subscribe(listen('sx:editing-start', this.onAppEditingStart.bind(this)))
     subscribe(listen('sx:editing-stop', this.onAppEditingStop.bind(this)))
     subscribe(listen('sx:current-performance-changed', this.onAppCurrentPerformanceChanged.bind(this)))
+    subscribe(listen('sx:split-current-tune', this.onAppSplitCurrentTune.bind(this)))
   }
 
   unload() { log(arguments)()
@@ -301,5 +302,9 @@ export class WaveformManager {
       // // this.ws.setScroll(newScroll)
       // // this.zoomTimeout = setTimeout(() => this.zooming = false, 1000)
     }
+  }
+
+  private onAppSplitCurrentTune() { log(arguments)()
+    this.regionManager.splitCurrentTune(this.ws.getCurrentTime())
   }
 }

@@ -49,6 +49,7 @@ interface App {
   zoomOut: () => void
   toggleEditing: () => void
   toggleTuneMode: () => void
+  splitCurrentTune: () => void
   changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
   uploadFile: (form: HTMLFormElement) => void
   uploadBackup: (form: HTMLFormElement) => void
@@ -230,6 +231,10 @@ const App = defineComponent<unknown, App>(() => ({
     } else {
         this.$dispatch('sx:tune-mode-stop')
     }
+  },
+
+  splitCurrentTune() { log(arguments)()
+    this.$dispatch('sx:split-current-tune')
   },
 
   updatePerformanceTuneName(sessionId: string, performanceId: string, tuneName: string) { log(arguments)()

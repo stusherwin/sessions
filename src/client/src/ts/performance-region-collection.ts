@@ -122,11 +122,22 @@ export class PerformanceRegionCollection {
     return newPerformance
   }
 
+  fix(id: string, startTime: number, endTime: number) { log(arguments)()
+    var performance = this.list.find(t => t.id == id)
+    if(!performance) {
+      return
+    }
+
+    performance.startTime = startTime
+    performance.endTime = endTime
+    this.lockNeighbours()
+  }
+
   private lockNeighbours() { log(arguments)()
-    if(!this.list.length) {
+    if(!this.list.length) { 
       return;
     }
-    
+
     this.list[0].prevNeighbour = undefined
 
     for(var i = 1; i < this.list.length; i++) {
@@ -135,6 +146,7 @@ export class PerformanceRegionCollection {
 
       var locked = prevTune.endTime == tune.startTime
       prevTune.nextNeighbour = new PerformanceRegionNeighbour(tune, locked)
+
       tune.prevNeighbour = new PerformanceRegionNeighbour(prevTune, locked)
       tune.nextNeighbour = undefined
     }    
