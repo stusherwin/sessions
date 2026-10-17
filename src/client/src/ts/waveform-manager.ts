@@ -58,6 +58,8 @@ export class WaveformManager {
     subscribe(listen('sx:skip-to-end', this.onAppSkipToEnd.bind(this)))
     subscribe(listen('sx:skip-backward', this.onAppSkipBackward.bind(this)))
     subscribe(listen('sx:skip-forward', this.onAppSkipForward.bind(this)))
+    subscribe(listen('sx:nudge-backward', this.onAppNudgeBackward.bind(this)))
+    subscribe(listen('sx:nudge-forward', this.onAppNudgeForward.bind(this)))
     subscribe(listen('sx:zoom-in', this.onAppZoomIn.bind(this)))
     subscribe(listen('sx:zoom-out', this.onAppZoomOut.bind(this)))
     subscribe(listen('sx:editing-start', this.onAppEditingStart.bind(this)))
@@ -155,6 +157,14 @@ export class WaveformManager {
     }
   }
 
+  private onAppNudgeBackward() { log(arguments)()
+    this.ws.setTime(this.ws.getCurrentTime() - 0.5);
+  }
+
+  private onAppNudgeForward() { log(arguments)()
+    this.ws.setTime(this.ws.getCurrentTime() + 0.5);
+  }
+
   private onAppZoomIn() { log(arguments)()
     // var currentScroll = this.ws.getScroll()
     // var total = this.ws.getWrapper().scrollWidth
@@ -164,7 +174,7 @@ export class WaveformManager {
     var duration = this.ws.getDuration()
     var zoomedOut = width / duration
     var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
-    var targetLevel = Math.min(width, currentLevel * 2)
+    var targetLevel = Math.min(width, currentLevel * 4)
     // this.zooming = true
     // clearTimeout(this.zoomTimeout)
     this.ws.zoom(targetLevel)
@@ -192,7 +202,7 @@ export class WaveformManager {
     var duration = this.ws.getDuration()
     var zoomedOut = width / duration
     var currentLevel = this.ws.options.minPxPerSec == 0 ? zoomedOut : this.ws.options.minPxPerSec
-    var targetLevel = Math.max(zoomedOut, currentLevel / 2)
+    var targetLevel = Math.max(zoomedOut, currentLevel / 4)
     // this.zooming = true
     // clearTimeout(this.zoomTimeout)
     this.ws.zoom(targetLevel)

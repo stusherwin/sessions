@@ -44,6 +44,8 @@ interface App {
   skipToEnd: () => void
   skipBackward: () => void
   skipForward: () => void
+  nudgeBackward: () => void
+  nudgeForward: () => void
   playPause: () => void
   zoomIn: () => void
   zoomOut: () => void
@@ -196,6 +198,14 @@ const App = defineComponent<unknown, App>(() => ({
 
   skipForward() { log(arguments)()
     this.$dispatch('sx:skip-forward')
+  },
+
+  nudgeForward() { log(arguments)()
+    this.$dispatch('sx:nudge-forward')
+  },
+
+  nudgeBackward() { log(arguments)()
+    this.$dispatch('sx:nudge-backward')
   },
 
   playPause() { log(arguments)()

@@ -345,13 +345,22 @@
                     <use href="#skip-end-fill" />
                   </svg>
                 </button>
+                <button @@click="nudgeBackward()" class="shadow-md shadow-black/50 ml-4">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#arrow-bar-left" />
+                  </svg>
+                </button>
+                <button @@click="nudgeForward()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#arrow-bar-right" />
+                  </svg>
+                </button>
                 <button @@click="zoomIn()" class="shadow-md shadow-black/50 ml-4">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#zoom-in" />
                   </svg>
                 </button>
-                <button @@click="zoomOut()" class="shadow-md shadow-black/50"
-                  :class="{'mb-auto': !editing}">
+                <button @@click="zoomOut()" class="shadow-md shadow-black/50">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#zoom-out" />
                   </svg>
