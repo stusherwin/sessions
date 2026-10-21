@@ -176,15 +176,9 @@ export class PerformanceRegion {
     this.tuneName = tuneName
 
     if(startTime != this.startTime || endTime != this.endTime) {
-      console.log(`=====================`)
-      console.log(`${this.id}: ${this.startTime} - ${this.endTime}`)
-      console.log(`update: ${startTime} - ${endTime}`)
       if(this.prevNeighbour) {
-        console.log(`prev: ${this.prevNeighbour.performance.startTime} - ${this.prevNeighbour.performance.endTime} ${this.prevNeighbour.locked ? '(locked)' : ''}`)
-        
         if(this.prevNeighbour.locked) {
           if(startTime <= this.prevNeighbour.performance.startTime) {
-            console.log(`forcing startTime from ${startTime} to ${this.prevNeighbour.performance.startTime + 10}`)
             startTime = this.prevNeighbour.performance.startTime + 10 
           }
           this.prevNeighbour.performance.endTime = startTime
@@ -196,11 +190,8 @@ export class PerformanceRegion {
       }
 
       if(this.nextNeighbour) {
-        console.log(`next: ${this.nextNeighbour.performance.startTime} - ${this.nextNeighbour.performance.endTime} ${this.nextNeighbour.locked ? '(locked)' : ''}`)
-
         if(this.nextNeighbour.locked) {
           if(endTime >= this.nextNeighbour.performance.endTime) {
-            console.log(`forcing endTime from ${endTime} to ${this.nextNeighbour.performance.endTime - 10}`)
             endTime = this.nextNeighbour.performance.endTime - 10
           }
           this.nextNeighbour.performance.startTime = endTime
@@ -213,9 +204,6 @@ export class PerformanceRegion {
 
       this.startTime = startTime
       this.endTime = endTime
-
-      console.log(`result: ${this.startTime} - ${this.endTime}`)
-
     }
   }
 

@@ -109,7 +109,7 @@ export class RegionManager {
 
     let region = this.findRegion(p.id)
 
-    if(!region || currentTime < region.start + 100 || currentTime > region.end - 100) {
+    if(!region || currentTime < region.start + 10 || currentTime > region.end - 10) {
       return
     }
 
@@ -125,6 +125,28 @@ export class RegionManager {
     })
 
     this.splittingTune = undefined
+
+    region = this.findRegion(p.id)
+    p = this.performances.getCurrent();
+    if(!p) {
+      return
+    }
+    this.updateLockedState(region, p)
+
+    var prevNeighbour = p.prevNeighbour
+    if(prevNeighbour) {
+      let prevRegion = this.findRegion(prevNeighbour.performance.id)
+
+      this.updateLockedState(prevRegion, prevNeighbour.performance)
+    }
+
+    var nextNeighbour = p.nextNeighbour
+    if(nextNeighbour) {
+      let nextRegion = this.findRegion(nextNeighbour.performance.id)
+
+      this.updateLockedState(nextRegion, nextNeighbour.performance)
+    }
+
   }
 
   private onAppPerformanceCreated(performance: Performance) { log(arguments)()
