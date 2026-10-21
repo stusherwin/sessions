@@ -377,13 +377,23 @@
             </div>
             <div class="absolute top-0 bottom-0 right-2 z-10 flex flex-col">
               <div class="flex flex-col p-2 mt-auto mb-auto rounded"
-                   x-show="editing" 
-                   :class="{'bg-white/50': !editing,'bg-black/50': editing}">
-                <button @@click="splitCurrentTune()" class="shadow-md shadow-black/50" 
-                  :disabled="!pageState.data.currentPerformance"
-                  :class="{'mb-auto': editing}">
+                   x-show="editing">
+                <button @@click="splitCurrentTune()" class="shadow-md shadow-black/50 mb-2" 
+                  :disabled="!pageState.data.currentPerformance">
                   <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#layout-split" />
+                    <use href="#split-current" />
+                  </svg>
+                </button>
+                <button @@click="breakFromPrevious()" class="shadow-md shadow-black/50 mb-2" 
+                  :disabled="!pageState.data.canBreakPrevious">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#break-from-previous" />
+                  </svg>
+                </button>
+                <button @@click="breakFromNext()" class="shadow-md shadow-black/50" 
+                  :disabled="!pageState.data.canBreakNext">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#break-from-next" />
                   </svg>
                 </button>
               </div>
@@ -432,6 +442,7 @@
 
   </div>
   <div id="all" hidden ></div>
+  <div id="custom" hidden ></div>
   <environment names="Development">
       <script type="module" src="/dist/ts/main.ts"></script>
   </environment>

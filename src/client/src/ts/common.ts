@@ -1,4 +1,4 @@
-const logging = true
+const logging = false
 
 export const dispatch = (e: string, detail: any) =>
   dispatchEvent(new CustomEvent(e, { detail }))

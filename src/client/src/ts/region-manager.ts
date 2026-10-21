@@ -72,6 +72,8 @@ export class RegionManager {
     subscribe(listen('sx:tune-mode-stop', this.onAppTuneModeStop.bind(this)))
     subscribe(listen('sx:playing-start', this.onAppPlayingStart.bind(this)))
     subscribe(listen('sx:playing-stop', this.onAppPlayingStop.bind(this)))
+    subscribe(listen('sx:break-from-previous', this.onAppBreakFromPrevious.bind(this)))
+    subscribe(listen('sx:break-from-next', this.onAppBreakFromNext.bind(this)))
   }
 
   unload() { log(arguments)()
@@ -165,6 +167,8 @@ export class RegionManager {
       performanceId: performance.id,
       startTime: performance.startTime,
       endTime: performance.endTime,
+      canBreakPrevious: p.prevNeighbour && p.prevNeighbour.locked,
+      canBreakNext: p.nextNeighbour && p.nextNeighbour.locked,
       forced: true
     })
 
@@ -311,6 +315,112 @@ export class RegionManager {
 
   private onAppPlayingStop() { log(arguments)()
     this.playing = false
+  }
+
+  private onAppBreakFromPrevious() { log(arguments)()
+    var p = this.performances.getCurrent();
+    if(!p) {
+      return
+    }
+
+    let region = this.findRegion(p.id)
+    if(!region) {
+      return
+    }
+
+    console.log(`p: ${p.id} ${p.startTime} - ${p.endTime}`)
+    console.log(`r: ${region.id} ${region.start} - ${region.end}`)
+    this.performances.fix(p.id, p.startTime + 0.5, p.endTime)
+    p = this.performances.find(p.id)
+    if(!p) {
+      return
+    }
+    console.log(`p: ${p.id} ${p.startTime} - ${p.endTime}`)
+
+    region.setOptions({ id : p.id, content: p.tuneName, start: p.startTime, end: p.endTime })
+    console.log(`r: ${region.id} ${region.start} - ${region.end}`)
+
+    this.updateLockedState(region, p)
+
+    if(p.prevNeighbour) {
+      var prevRegion = this.findRegion(p.prevNeighbour.performance.id)
+      prevRegion?.setOptions({ start: p.prevNeighbour.performance.startTime, end: p.prevNeighbour.performance.endTime })
+      this.updateLockedState(prevRegion, p.prevNeighbour?.performance)
+    }
+
+    if(p.nextNeighbour) {
+      var nextRegion = this.findRegion(p.nextNeighbour.performance.id)
+      nextRegion?.setOptions({ start: p.nextNeighbour.performance.startTime, end: p.nextNeighbour.performance.endTime })
+      this.updateLockedState(nextRegion, p.nextNeighbour?.performance)
+    }
+
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: p.id, 
+      startTime: p.startTime, 
+      endTime: p.endTime 
+    })
+
+    dispatch('sx:current-performance-changed', { 
+      sessionId: this.sessionId, 
+      performanceId: p.id,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      canBreakPrevious: p.prevNeighbour && p.prevNeighbour.locked,
+      canBreakNext: p.nextNeighbour && p.nextNeighbour.locked,
+      forced: false
+    })
+  }
+
+  private onAppBreakFromNext() { log(arguments)()
+    var p = this.performances.getCurrent();
+    if(!p) {
+      return
+    }
+
+    let region = this.findRegion(p.id)
+    if(!region) {
+      return
+    }
+
+    this.performances.fix(p.id, p.startTime, p.endTime - 0.5)
+    p = this.performances.find(p.id)
+    if(!p) {
+      return
+    }
+
+    region.setOptions({ id : p.id, content: p.tuneName, start: p.startTime, end: p.endTime })
+
+    this.updateLockedState(region, p)
+
+    if(p.prevNeighbour) {
+      var prevRegion = this.findRegion(p.prevNeighbour.performance.id)
+      prevRegion?.setOptions({ start: p.prevNeighbour.performance.startTime, end: p.prevNeighbour.performance.endTime })
+      this.updateLockedState(prevRegion, p.prevNeighbour?.performance)
+    }
+
+    if(p.nextNeighbour) {
+      var nextRegion = this.findRegion(p.nextNeighbour.performance.id)
+      nextRegion?.setOptions({ start: p.nextNeighbour.performance.startTime, end: p.nextNeighbour.performance.endTime })
+      this.updateLockedState(nextRegion, p.nextNeighbour?.performance)
+    }
+
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: p.id, 
+      startTime: p.startTime, 
+      endTime: p.endTime 
+    })
+
+    dispatch('sx:current-performance-changed', { 
+      sessionId: this.sessionId, 
+      performanceId: p.id,
+      startTime: p.startTime,
+      endTime: p.endTime,
+      canBreakPrevious: p.prevNeighbour && p.prevNeighbour.locked,
+      canBreakNext: p.nextNeighbour && p.nextNeighbour.locked,
+      forced: false
+    })
   }
 
   private onRegionInitialized(region: Region) { log(arguments)()
@@ -516,6 +626,8 @@ export class RegionManager {
         performanceId: current?.id,
         startTime: current?.startTime,
         endTime: current?.endTime,
+        canBreakPrevious: current?.prevNeighbour && current.prevNeighbour.locked,
+        canBreakNext: current?.nextNeighbour && current.nextNeighbour.locked,
         forced: false
       })
     }
@@ -531,6 +643,8 @@ export class RegionManager {
         performanceId: current?.id,
         startTime: current?.startTime,
         endTime: current?.endTime,
+        canBreakPrevious: current?.prevNeighbour && current.prevNeighbour.locked,
+        canBreakNext: current?.nextNeighbour && current.nextNeighbour.locked,
         forced: false
       })
     }

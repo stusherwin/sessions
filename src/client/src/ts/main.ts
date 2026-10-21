@@ -2,6 +2,7 @@ import Alpine from 'alpinejs'
 import persist from '@alpinejs/persist'
 import '../css/styles.css'
 import iconsRaw from 'bootstrap-icons/bootstrap-icons.svg?raw'
+import iconsCustom from '../custom-icons.svg?raw'
 import App from './app.ts'
 import type { WaveformData } from './waveform-manager.ts'
 import { WaveformManager } from './waveform-manager.ts'
@@ -10,6 +11,10 @@ import { listen, dispatch } from './common.ts'
 var allSvg = document.getElementById('all')
 if(allSvg) {
   allSvg.innerHTML = iconsRaw;
+}
+var customSvg = document.getElementById('custom')
+if(customSvg) {
+  customSvg.innerHTML = iconsCustom;
 }
 
 window.Alpine = Alpine

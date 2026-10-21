@@ -10,6 +10,8 @@ interface Waveform {
   loading: number
   session: Session
   currentPerformance: string | undefined
+  canBreakPrevious: boolean
+  canBreakNext: boolean
 }
 
 type PageState = { page: 'sessions' } 
@@ -59,7 +61,7 @@ interface App {
   createBackup: (form: HTMLFormElement) => void
   onPerformanceCreating: (detail: {sessionId: string, startTime: number, endTime: number}) => void
   onPerformanceUpdating: (detail: {sessionId: string, performanceId: string, startTime: number, endTime: number}) => void
-  onCurrentPerformanceChanged: (detail: {sessionId: string, performanceId: string | undefined}) => void
+  onCurrentPerformanceChanged: (detail: {sessionId: string, performanceId: string | undefined, canBreakPrevious: boolean, canBreakNext: boolean}) => void
   formatDate: (date: Date) => string
 }
 
@@ -96,7 +98,9 @@ const App = defineComponent<unknown, App>(() => ({
         session: session,
         ready: false,
         loading: 0,
-        currentPerformance: undefined
+        currentPerformance: undefined,
+        canBreakNext: false,
+        canBreakPrevious: false
       }
     }
     this.editing = false
@@ -206,6 +210,14 @@ const App = defineComponent<unknown, App>(() => ({
 
   nudgeBackward() { log(arguments)()
     this.$dispatch('sx:nudge-backward')
+  },
+
+  breakFromPrevious() { log(arguments)()
+    this.$dispatch('sx:break-from-previous')
+  },
+
+  breakFromNext() { log(arguments)()
+    this.$dispatch('sx:break-from-next')
   },
 
   playPause() { log(arguments)()
@@ -453,15 +465,19 @@ const App = defineComponent<unknown, App>(() => ({
     this.$dispatch('sx:performance-updated', performance)
   },
 
-  onCurrentPerformanceChanged(detail: {sessionId: string, performanceId: string | undefined}) { log(arguments)()
+  onCurrentPerformanceChanged(detail: {sessionId: string, performanceId: string | undefined, canBreakPrevious: boolean, canBreakNext: boolean}) { log(arguments)()
     var sessionId = detail.sessionId
     var performanceId = detail.performanceId
+    var canBreakNext = detail.canBreakNext
+    var canBreakPrevious = detail.canBreakPrevious
 
     if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
       return
     }
 
     this.pageState.data.currentPerformance = performanceId
+    this.pageState.data.canBreakNext = canBreakNext
+    this.pageState.data.canBreakPrevious = canBreakPrevious
   },
 
   onTaskProgress(detail: {taskId: string, percentComplete: number}) { log(arguments)()
