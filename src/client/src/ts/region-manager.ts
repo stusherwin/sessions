@@ -14,6 +14,7 @@ export class RegionManager {
   private initialPerformanceId: string | undefined
   private regions: RegionsPlugin
   private editing: boolean = false
+  private adding: boolean = false
   private playing: boolean = false
   private tuneMode: boolean = false
   private subscriptions: (() => void)[] = []
@@ -68,6 +69,8 @@ export class RegionManager {
     subscribe(listen('sx:performance-deleted', this.onAppPerformanceDeleted.bind(this)))
     subscribe(listen('sx:editing-start', this.onAppEditingStart.bind(this)))
     subscribe(listen('sx:editing-stop', this.onAppEditingStop.bind(this)))
+    subscribe(listen('sx:adding-start', this.onAppAddingStart.bind(this)))
+    subscribe(listen('sx:adding-stop', this.onAppAddingStop.bind(this)))
     subscribe(listen('sx:tune-mode-start', this.onAppTuneModeStart.bind(this)))
     subscribe(listen('sx:tune-mode-stop', this.onAppTuneModeStop.bind(this)))
     subscribe(listen('sx:playing-start', this.onAppPlayingStart.bind(this)))
@@ -284,11 +287,6 @@ export class RegionManager {
   private onAppEditingStart() { log(arguments)()
     this.editing = true
     
-    this.disableDragSelection = this.regions.enableDragSelection({
-      // color: 'rgba(206.6, 226, 254.6, 0.5)',
-      drag: false
-    })
-
     var rs = this.regions.getRegions()
     for(var i = 0; i < rs.length; i++) {
       rs[i].setOptions({resize: true})
@@ -315,12 +313,25 @@ export class RegionManager {
       }
     }
 
+    this.editing = false
+  }
+
+  private onAppAddingStart() { log(arguments)()
+    this.adding = true
+    
+    this.disableDragSelection = this.regions.enableDragSelection({
+      // color: 'rgba(206.6, 226, 254.6, 0.5)',
+      drag: false
+    })
+  }
+
+  private onAppAddingStop() { log(arguments)()
     if(this.disableDragSelection) {
       this.disableDragSelection()
       this.disableDragSelection = undefined
     }
 
-    this.editing = false
+    this.adding = false
   }
 
   private onAppTuneModeStart() { log(arguments)()
@@ -350,17 +361,13 @@ export class RegionManager {
       return
     }
 
-    console.log(`p: ${p.id} ${p.startTime} - ${p.endTime}`)
-    console.log(`r: ${region.id} ${region.start} - ${region.end}`)
     this.performances.fix(p.id, p.startTime + 0.5, p.endTime)
     p = this.performances.find(p.id)
     if(!p) {
       return
     }
-    console.log(`p: ${p.id} ${p.startTime} - ${p.endTime}`)
 
     region.setOptions({ id : p.id, content: p.tuneName, start: p.startTime, end: p.endTime })
-    console.log(`r: ${region.id} ${region.start} - ${region.end}`)
 
     this.updateLockedState(region, p)
 
@@ -446,6 +453,10 @@ export class RegionManager {
   }
 
   private onRegionInitialized(region: Region) { log(arguments)()
+    if(!this.adding) {
+      return
+    }
+
     // different colour for creating tune
     region.setOptions({ id : 'creating' })
 
@@ -461,6 +472,11 @@ export class RegionManager {
   private onRegionCreated(region: Region) { log(arguments)()
     if(this.disableDragSelection) {
       this.disableDragSelection()
+    }
+
+    if(!this.adding) {
+      region.remove()
+      return
     }
 
     var performance = this.performances.tryCreate(region.start, region.end)

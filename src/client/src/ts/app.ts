@@ -27,6 +27,7 @@ interface App {
   pageState: PageState
   playing: boolean
   editing: boolean
+  adding: boolean
   tuneMode: boolean
   fileUpload: string | undefined
   newSessionName: string | undefined
@@ -52,6 +53,7 @@ interface App {
   zoomIn: () => void
   zoomOut: () => void
   toggleEditing: () => void
+  toggleAdding: () => void
   toggleTuneMode: () => void
   splitCurrentTune: () => void
   changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
@@ -71,6 +73,7 @@ const App = defineComponent<unknown, App>(() => ({
   pageState: { page: 'sessions' } as PageState,
   playing: false,
   editing: false,
+  adding: false,
   tuneMode: false,
   fileUpload: undefined,
   newSessionName: undefined,
@@ -104,6 +107,7 @@ const App = defineComponent<unknown, App>(() => ({
       }
     }
     this.editing = false
+    this.adding = false
 
     var performances = this.data.performances.filter(p => p.sessionId == sessionId)
     this.$dispatch('sx:waveform-loading', { session, performances, performanceId })
@@ -122,6 +126,7 @@ const App = defineComponent<unknown, App>(() => ({
       data: tune
     }
     this.editing = false
+    this.adding = false
   },
 
   loadSessions() { log(arguments)()
@@ -133,6 +138,7 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'sessions'
     }
     this.editing = false
+    this.adding = false
   },
 
   loadTunes() { log(arguments)()
@@ -144,6 +150,7 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'tunes'
     }
     this.editing = false
+    this.adding = false
   },
 
   loadNewSession() { log(arguments)()
@@ -155,6 +162,7 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'newSession'
     }
     this.editing = false
+    this.adding = false
   },
 
   loadBackups() { log(arguments)()
@@ -166,26 +174,27 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'backups'
     }
     this.editing = false
+    this.adding = false
   },
 
   formatTime(time: number, includeMilliseconds: boolean = false) {
     const h = 60.0 * 60.0
     const m = 60.0
-    const pad = (n: any) => n.toString().padStart(2, '0')
+    const pad = (n: any, p: number) => n.toString().padStart(p, '0')
  
     var hours = time / h
-    var hoursPart = pad(Math.floor(hours))
+    var hoursPart = hours > 1 ? Math.floor(hours) + ':' : ''
 
     var minutes = (time % h) / m
-    var minutesPart = pad(Math.floor(minutes))
+    var minutesPart = pad(Math.floor(minutes), 2) + ':'
 
     var seconds = (time % h) % m
 
     var secondsPart = includeMilliseconds
-      ? pad(seconds.toFixed(3))
-      : pad(Math.round(seconds))
+      ? pad(seconds.toFixed(3), 6)
+      : pad(Math.round(seconds), 2)
 
-    return `${hoursPart}:${minutesPart}:${secondsPart}`
+    return `${hoursPart}${minutesPart}${secondsPart}`
   },
 
   skipToStart() { log(arguments)()
@@ -240,9 +249,20 @@ const App = defineComponent<unknown, App>(() => ({
   toggleEditing() { log(arguments)()
     this.editing = !this.editing
     if(this.editing) {
-        this.$dispatch('sx:editing-start')
+      this.$dispatch('sx:editing-start')
     } else {
-        this.$dispatch('sx:editing-stop')
+      this.$dispatch('sx:editing-stop')
+      this.adding = false
+      this.$dispatch('sx:adding-stop')
+    }
+  },
+
+  toggleAdding() { log(arguments)()
+    this.adding = !this.adding
+    if(this.adding) {
+      this.$dispatch('sx:adding-start')
+    } else {
+      this.$dispatch('sx:adding-stop')
     }
   },
 
