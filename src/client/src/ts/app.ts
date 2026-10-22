@@ -49,6 +49,10 @@ interface App {
   skipForward: () => void
   nudgeBackward: () => void
   nudgeForward: () => void
+  nudgeStartBackward: () => void
+  nudgeStartForward: () => void
+  nudgeEndBackward: () => void
+  nudgeEndForward: () => void
   playPause: () => void
   zoomIn: () => void
   zoomOut: () => void
@@ -227,6 +231,22 @@ const App = defineComponent<unknown, App>(() => ({
 
   breakFromNext() { log(arguments)()
     this.$dispatch('sx:break-from-next')
+  },
+
+  nudgeStartBackward() { log(arguments)()
+    this.$dispatch('sx:nudge-start-backward')
+  },
+
+  nudgeStartForward() { log(arguments)()
+    this.$dispatch('sx:nudge-start-forward')
+  },
+
+  nudgeEndBackward() { log(arguments)()
+    this.$dispatch('sx:nudge-end-backward')
+  },
+
+  nudgeEndForward() { log(arguments)()
+    this.$dispatch('sx:nudge-end-forward')
   },
 
   playPause() { log(arguments)()

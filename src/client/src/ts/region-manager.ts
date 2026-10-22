@@ -77,6 +77,10 @@ export class RegionManager {
     subscribe(listen('sx:playing-stop', this.onAppPlayingStop.bind(this)))
     subscribe(listen('sx:break-from-previous', this.onAppBreakFromPrevious.bind(this)))
     subscribe(listen('sx:break-from-next', this.onAppBreakFromNext.bind(this)))
+    subscribe(listen('sx:nudge-start-backward', this.onAppNudgeStartBackward.bind(this)))
+    subscribe(listen('sx:nudge-start-forward', this.onAppNudgeStartForward.bind(this)))
+    subscribe(listen('sx:nudge-end-backward', this.onAppNudgeEndBackward.bind(this)))
+    subscribe(listen('sx:nudge-end-forward', this.onAppNudgeEndForward.bind(this)))
   }
 
   unload() { log(arguments)()
@@ -450,6 +454,194 @@ export class RegionManager {
       canBreakNext: p.nextNeighbour && p.nextNeighbour.locked,
       forced: false
     })
+  }
+
+  private onAppNudgeStartBackward() { log(arguments)()
+    var performance = this.performances.getCurrent();
+    if(!performance) {
+      return
+    }
+
+    let region = this.findRegion(performance.id)
+    if(!region) {
+      return
+    }
+
+    performance.update(performance.tuneId, performance.tuneName, region.start - 0.5, region.end)
+    region.setOptions({ start: performance.startTime, end: performance.endTime })
+
+    this.updateLockedState(region, performance)
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: performance.id, 
+      startTime: performance.startTime, 
+      endTime: performance.endTime 
+    })
+
+    if(performance.prevNeighbour) {
+      var prevRegion = this.findRegion(performance.prevNeighbour.performance.id)
+      prevRegion?.setOptions({ start: performance.prevNeighbour.performance.startTime, end: performance.prevNeighbour.performance.endTime })
+      this.updateLockedState(prevRegion, performance.prevNeighbour?.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.prevNeighbour.performance.id, 
+        startTime: performance.prevNeighbour.performance.startTime, 
+        endTime: performance.prevNeighbour.performance.endTime 
+      })
+    }
+
+    if(performance.nextNeighbour) {
+      var nextRegion = this.findRegion(performance.nextNeighbour.performance.id)
+      nextRegion?.setOptions({ start: performance.nextNeighbour.performance.startTime, end: performance.nextNeighbour.performance.endTime })
+      this.updateLockedState(nextRegion, performance.nextNeighbour?.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.nextNeighbour.performance.id, 
+        startTime: performance.nextNeighbour.performance.startTime, 
+        endTime: performance.nextNeighbour.performance.endTime 
+      })
+    }
+  }
+
+  private onAppNudgeStartForward() { log(arguments)()
+    var performance = this.performances.getCurrent();
+    if(!performance) {
+      return
+    }
+
+    let region = this.findRegion(performance.id)
+    if(!region) {
+      return
+    }
+
+    performance.update(performance.tuneId, performance.tuneName, region.start + 0.5, region.end)
+    region.setOptions({ start: performance.startTime, end: performance.endTime })
+
+    this.updateLockedState(region, performance)
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: performance.id, 
+      startTime: performance.startTime, 
+      endTime: performance.endTime 
+    })
+
+    if(performance.prevNeighbour) {
+      var prevRegion = this.findRegion(performance.prevNeighbour.performance.id)
+      prevRegion?.setOptions({ start: performance.prevNeighbour.performance.startTime, end: performance.prevNeighbour.performance.endTime })
+      this.updateLockedState(prevRegion, performance.prevNeighbour.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.prevNeighbour.performance.id, 
+        startTime: performance.prevNeighbour.performance.startTime, 
+        endTime: performance.prevNeighbour.performance.endTime 
+      })
+    }
+
+    if(performance.nextNeighbour) {
+      var nextRegion = this.findRegion(performance.nextNeighbour.performance.id)
+      nextRegion?.setOptions({ start: performance.nextNeighbour.performance.startTime, end: performance.nextNeighbour.performance.endTime })
+      this.updateLockedState(nextRegion, performance.nextNeighbour?.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.nextNeighbour.performance.id, 
+        startTime: performance.nextNeighbour.performance.startTime, 
+        endTime: performance.nextNeighbour.performance.endTime 
+      })
+    }
+  }
+
+  private onAppNudgeEndBackward() { log(arguments)()
+    var performance = this.performances.getCurrent();
+    if(!performance) {
+      return
+    }
+
+    let region = this.findRegion(performance.id)
+    if(!region) {
+      return
+    }
+
+    performance.update(performance.tuneId, performance.tuneName, region.start, region.end - 0.5)
+    region.setOptions({ start: performance.startTime, end: performance.endTime })
+
+    this.updateLockedState(region, performance)
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: performance.id, 
+      startTime: performance.startTime, 
+      endTime: performance.endTime 
+    })
+
+    if(performance.prevNeighbour) {
+      var prevRegion = this.findRegion(performance.prevNeighbour.performance.id)
+      prevRegion?.setOptions({ start: performance.prevNeighbour.performance.startTime, end: performance.prevNeighbour.performance.endTime })
+      this.updateLockedState(prevRegion, performance.prevNeighbour.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.prevNeighbour.performance.id, 
+        startTime: performance.prevNeighbour.performance.startTime, 
+        endTime: performance.prevNeighbour.performance.endTime 
+      })
+    }
+
+    if(performance.nextNeighbour) {
+      var nextRegion = this.findRegion(performance.nextNeighbour.performance.id)
+      nextRegion?.setOptions({ start: performance.nextNeighbour.performance.startTime, end: performance.nextNeighbour.performance.endTime })
+      this.updateLockedState(nextRegion, performance.nextNeighbour?.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.nextNeighbour.performance.id, 
+        startTime: performance.nextNeighbour.performance.startTime, 
+        endTime: performance.nextNeighbour.performance.endTime 
+      })
+    }
+  }
+
+  private onAppNudgeEndForward() { log(arguments)()
+    var performance = this.performances.getCurrent();
+    if(!performance) {
+      return
+    }
+
+    let region = this.findRegion(performance.id)
+    if(!region) {
+      return
+    }
+
+    performance.update(performance.tuneId, performance.tuneName, region.start, region.end + 0.5)
+    region.setOptions({ start: performance.startTime, end: performance.endTime })
+
+    this.updateLockedState(region, performance)
+    dispatch('sx:performance-updating', { 
+      sessionId: this.sessionId, 
+      performanceId: performance.id, 
+      startTime: performance.startTime, 
+      endTime: performance.endTime 
+    })
+
+    if(performance.prevNeighbour) {
+      var prevRegion = this.findRegion(performance.prevNeighbour.performance.id)
+      prevRegion?.setOptions({ start: performance.prevNeighbour.performance.startTime, end: performance.prevNeighbour.performance.endTime })
+      this.updateLockedState(prevRegion, performance.prevNeighbour.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.prevNeighbour.performance.id, 
+        startTime: performance.prevNeighbour.performance.startTime, 
+        endTime: performance.prevNeighbour.performance.endTime 
+      })
+    }
+
+    if(performance.nextNeighbour) {
+      var nextRegion = this.findRegion(performance.nextNeighbour.performance.id)
+      nextRegion?.setOptions({ start: performance.nextNeighbour.performance.startTime, end: performance.nextNeighbour.performance.endTime })
+      this.updateLockedState(nextRegion, performance.nextNeighbour?.performance)
+      dispatch('sx:performance-updating', { 
+        sessionId: this.sessionId, 
+        performanceId: performance.nextNeighbour.performance.id, 
+        startTime: performance.nextNeighbour.performance.startTime, 
+        endTime: performance.nextNeighbour.performance.endTime 
+      })
+    }
   }
 
   private onRegionInitialized(region: Region) { log(arguments)()
