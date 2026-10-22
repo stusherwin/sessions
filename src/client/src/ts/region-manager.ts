@@ -453,7 +453,7 @@ export class RegionManager {
   }
 
   private onRegionInitialized(region: Region) { log(arguments)()
-    if(!this.adding) {
+    if(!this.adding && !this.splittingTune) {
       return
     }
 
@@ -474,7 +474,7 @@ export class RegionManager {
       this.disableDragSelection()
     }
 
-    if(!this.adding) {
+    if(!this.adding && !this.splittingTune) {
       region.remove()
       return
     }
