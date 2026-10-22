@@ -316,69 +316,11 @@
         <div x-show="pageState.data.ready">
           <div class="relative -mx-4 sm:mx-0">
             <div :data-session-id="pageState.data.session.id" class="waveform" :class="{'mt-4': !editing, 'mt-2': editing}"></div>
-            <div class="absolute left-0 right-0 -bottom-2 z-10 flex">
+            <div class="absolute left-0 right-0 -bottom-2 z-10 flex" 
+                   x-show="editing">
               <div class="button-group ml-auto mr-auto p-2 rounded"
                 :class="{'bg-white/50': !editing,'bg-black/50': editing}">
-                <button @@click="skipToStart()" class="shadow-md shadow-black/50">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#skip-start-fill" />
-                  </svg>
-                </button>
-                <button @@click="skipBackward()" class="shadow-md shadow-black/50">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#skip-backward-fill" />
-                  </svg>
-                </button>
-                <button @@click="playPause()" class="shadow-md shadow-black/50">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use x-show="!playing" href="#play-fill" />
-                    <use x-show="playing" href="#pause-fill" />
-                  </svg>
-                </button>
-                <button @@click="skipForward()" class="shadow-md shadow-black/50">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#skip-forward-fill" />
-                  </svg>
-                </button>
-                <button @@click="skipToEnd()" class="shadow-md shadow-black/50">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#skip-end-fill" />
-                  </svg>
-                </button>
-                <button @@click="nudgeBackward()" class="shadow-md shadow-black/50 ml-4">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#arrow-bar-left" />
-                  </svg>
-                </button>
-                <button @@click="nudgeForward()" class="shadow-md shadow-black/50">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#arrow-bar-right" />
-                  </svg>
-                </button>
-                <button @@click="zoomIn()" class="shadow-md shadow-black/50 ml-4">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#zoom-in" />
-                  </svg>
-                </button>
-                <button @@click="zoomOut()" class="shadow-md shadow-black/50">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#zoom-out" />
-                  </svg>
-                </button>
-                <button @@click="toggleTuneMode()" class="shadow-md shadow-black/50 ml-4" :class="{
-                  'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !tuneMode,
-                  'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': tuneMode
-                }">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#music-note-list" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div class="absolute top-0 bottom-0 right-2 z-10 flex flex-col">
-              <div class="flex flex-col p-2 mt-auto mb-auto rounded"
-                   x-show="editing">
-                <button @@click="toggleAdding()" class="shadow-md shadow-black/50 mb-2" :class="{
+                <button @@click="toggleAdding()" class="shadow-md shadow-black/50" :class="{
                   'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !adding,
                   'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': adding
                 }">
@@ -386,13 +328,13 @@
                     <use href="#plus" />
                   </svg>
                 </button>
-                <button @@click="splitCurrentTune()" class="shadow-md shadow-black/50 mb-2" 
+                <button @@click="splitCurrentTune()" class="shadow-md shadow-black/50" 
                   :disabled="!pageState.data.currentPerformance">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#split-current" />
                   </svg>
                 </button>
-                <button @@click="breakFromPrevious()" class="shadow-md shadow-black/50 mb-2" 
+                <button @@click="breakFromPrevious()" class="shadow-md shadow-black/50" 
                   :disabled="!pageState.data.canBreakPrevious">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#break-from-previous" />
@@ -406,10 +348,72 @@
                 </button>
               </div>
             </div>
+            <div class="absolute top-0 bottom-0 right-2 z-10 flex flex-col">
+              <div class="flex flex-col p-2 mt-auto mb-auto rounded">
+                <button @@click="zoomIn()" class="shadow-md shadow-black/50 mb-2">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#zoom-in" />
+                  </svg>
+                </button>
+                <button @@click="zoomOut()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#zoom-out" />
+                  </svg>
+                </button>
+              </div>
+            </div>
             <button @@click="toggleEditing()" class="absolute top-1 right-4 z-10 shadow-md shadow-black/50">
               <svg class="bi" width="16" height="16" fill="currentColor">
                 <use href="#pencil-fill" x-show="!editing" />
                 <use href="#x" x-show="editing" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="button-group"
+            :class="{'bg-white/50': !editing,'bg-black/50': editing}">
+            <button @@click="skipToStart()" class="shadow-md shadow-black/50 ml-auto">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-start-fill" />
+              </svg>
+            </button>
+            <button @@click="skipBackward()" class="shadow-md shadow-black/50">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-backward-fill" />
+              </svg>
+            </button>
+            <button @@click="playPause()" class="shadow-md shadow-black/50">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use x-show="!playing" href="#play-fill" />
+                <use x-show="playing" href="#pause-fill" />
+              </svg>
+            </button>
+            <button @@click="skipForward()" class="shadow-md shadow-black/50">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-forward-fill" />
+              </svg>
+            </button>
+            <button @@click="skipToEnd()" class="shadow-md shadow-black/50">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#skip-end-fill" />
+              </svg>
+            </button>
+            <button @@click="nudgeBackward()" class="shadow-md shadow-black/50 ml-4">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#arrow-bar-left" />
+              </svg>
+            </button>
+            <button @@click="nudgeForward()" class="shadow-md shadow-black/50">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#arrow-bar-right" />
+              </svg>
+            </button>
+            <button @@click="toggleTuneMode()" class="shadow-md shadow-black/50 ml-4 mr-auto" :class="{
+              'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !tuneMode,
+              'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': tuneMode
+            }">
+              <svg class="bi" width="16" height="16" fill="currentColor">
+                <use href="#music-note-list" />
               </svg>
             </button>
           </div>
