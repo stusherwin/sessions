@@ -12,6 +12,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: './src/ts/main.ts',
+        newUi: './src/ts/new-ui.ts',
       }
     }  
   },
