@@ -105,6 +105,15 @@ export class RegionManager {
       }
     }
   }
+
+  getStartAndEndTime(performanceId: string) : { startTime: number, endTime: number } | undefined { log(arguments)()
+    var performance = this.performances.find(performanceId);
+    if(!performance) {
+      return
+    }
+
+    return { startTime: performance.startTime, endTime: performance.endTime }
+  }
    
   splitCurrentTune(currentTime: number) { log(arguments)()
     var p = this.performances.getCurrent();

@@ -447,7 +447,7 @@
               <li x-data x-init="$watch('performance.tuneName', name => updatePerformanceTuneName(pageState.data.session.id, performance.id, name))"
                   class="col-span-full grid grid-cols-subgrid">
                 <h2 class="col-start-1 col-span-2 mt-0 mb-0" :class="{'font-bold': pageState.data.currentPerformance == performance.id}">
-                  <a x-show="!editing" href="#" x-text="performance.tuneName" @@click="loadTune(performance.tuneId)"></a>
+                  <a x-show="!editing" href="#" x-text="performance.tuneName" @@click="changeCurrentTune(pageState.data.session.id, performance.id)"></a>
                   <input x-show="editing" type="text" class="w-full" x-model="performance.tuneName"
                     @@focus="$event.target.select()" />
                 </h2>

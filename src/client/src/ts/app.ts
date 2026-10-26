@@ -60,6 +60,7 @@ interface App {
   toggleAdding: () => void
   toggleTuneMode: () => void
   splitCurrentTune: () => void
+  changeCurrentTune: (sessionId: string, performanceId: string) => void
   changeTune: (sessionId: string, performanceId: string, newTuneId: string) => void
   uploadFile: (form: HTMLFormElement) => void
   uploadBackup: (form: HTMLFormElement) => void
@@ -297,6 +298,14 @@ const App = defineComponent<unknown, App>(() => ({
 
   splitCurrentTune() { log(arguments)()
     this.$dispatch('sx:split-current-tune')
+  },
+
+  changeCurrentTune(sessionId: string, performanceId: string) { log(arguments)()
+    if(this.pageState.page != 'session' || this.pageState.data.session.id != sessionId) {
+      return
+    }
+
+    this.$dispatch('sx:change-current-tune', performanceId)
   },
 
   updatePerformanceTuneName(sessionId: string, performanceId: string, tuneName: string) { log(arguments)()

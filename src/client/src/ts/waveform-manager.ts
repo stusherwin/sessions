@@ -68,6 +68,7 @@ export class WaveformManager {
     subscribe(listen('sx:editing-stop', this.onAppEditingStop.bind(this)))
     subscribe(listen('sx:current-performance-changed', this.onAppCurrentPerformanceChanged.bind(this)))
     subscribe(listen('sx:split-current-tune', this.onAppSplitCurrentTune.bind(this)))
+    subscribe(listen('sx:change-current-tune', this.onAppChangeCurrentTune.bind(this)))
   }
 
   unload() { log(arguments)()
@@ -168,6 +169,13 @@ export class WaveformManager {
 
   private onAppSkipForward() { log(arguments)()
     let span = this.regionManager.getNextStartAndEndTime(this.ws.getCurrentTime());
+    if(span) {
+      this.ws.setTime(span.startTime + 0.00000001);
+    }
+  }
+
+  private onAppChangeCurrentTune(performanceId: string) { log(arguments)()
+    let span = this.regionManager.getStartAndEndTime(performanceId);
     if(span) {
       this.ws.setTime(span.startTime + 0.00000001);
     }
