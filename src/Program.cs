@@ -30,6 +30,7 @@ public class Program
         services.AddRazorPages(o => {
             o.Conventions.Add(new CustomPageRouteModelConvention());
             o.Conventions.AddPageRoute("/Index", appKey);
+            o.Conventions.AddPageRoute("/NewUI", $"{appKey}/new-ui");
         });
 
         services.AddOpenApi();

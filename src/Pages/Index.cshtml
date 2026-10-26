@@ -1,5 +1,5 @@
 @page
-@model Index1Model
+@model IndexModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 <!doctype html>
 <html lang="en">
@@ -47,7 +47,7 @@
 
     <template x-if="data.loaded && pageState.page == 'backups'">
       <div>
-        <h1>Backups</h1>
+        <h1 class="text-2xl mt-2 mb-4 font-bold">Backups</h1>
 
         <!form method="post" @@submit.prevent="createBackup($event.target)" enctype="multipart/form-data"
               class="mb-8">
@@ -95,7 +95,7 @@
 
         <!form method="post" @@submit.prevent="uploadBackup($event.target)" enctype="multipart/form-data"
               class="mt-8">
-          <h1>Upload backup file</h1>
+          <h1 class="text-2xl mt-2 mb-4 font-bold">Upload backup file</h1>
 
           <div class="mt-4">
             <label class="upload-label icon-btn-text" for="upload-file">
@@ -129,7 +129,7 @@
 
     <template x-if="data.loaded && pageState.page == 'sessions'">
       <div>
-        <h1>Sessions</h1>
+        <h1 class="text-2xl mt-2 mb-4 font-bold">Sessions</h1>
 
         <button class="icon-btn-text mb-8" @@click="loadNewSession()">
           <svg class="bi" width="16" height="16" fill="currentColor">
@@ -190,7 +190,7 @@
 
     <template x-if="data.loaded && pageState.page == 'newSession'">
       <!form method="post" @@submit.prevent="uploadFile($event.target)" enctype="multipart/form-data">
-        <h1>New session</h1>
+        <h1 class="text-2xl mt-2 mb-4 font-bold">New session</h1>
 
         <div class="mt-4">
           <label class="upload-label icon-btn-text" for="upload-file">
@@ -237,7 +237,7 @@
 
     <template x-if="data.loaded && pageState.page == 'tunes'">
       <div>
-        <h1>Tunes</h1>
+        <h1 class="text-2xl mt-2 mb-4 font-bold">Tunes</h1>
 
         <ul class="grid grid-cols-[max-content_1fr_max-content] gap-y-2 gap-x-2">
           <template x-for="tune in data.tunes">
@@ -279,7 +279,7 @@
 
     <template x-if="data.loaded && pageState.page == 'tune'">
       <div>
-        <h1 x-show="!editing" x-text="pageState.data.name"></h1>
+        <h1 class="text-2xl mt-2 mb-4 font-bold" x-show="!editing" x-text="pageState.data.name"></h1>
         <input type="text" x-show="editing" class="text-2xl font-bold mt-1 mb-3" x-model="pageState.data.name" />
 
         <ul class="col-span-full grid grid-cols-[max-content_1fr_max-content] gap-y-4 gap-x-2">
@@ -308,7 +308,7 @@
            @@sx:current-performance-changed.window="onCurrentPerformanceChanged($event.detail)"
            @@sx:playing.window="playing = true"
            @@sx:stopped.window="playing = false">
-        <h1 x-show="!editing" x-text="pageState.data.session.name"></h1>
+        <h1 class="text-2xl mt-2 mb-4 font-bold" x-show="!editing" x-text="pageState.data.session.name"></h1>
         <textarea wrap="hard" x-show="editing" class="text-2xl font-bold mt-1 mb-0 w-full" :rows="Math.ceil(pageState.data.session.name.length / 50)" x-model="pageState.data.session.name"></textarea>
         <div x-show="!pageState.data.ready">
           Loading: <span x-text="pageState.data.loading"></span>%

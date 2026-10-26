@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-public class IndexModel : PageModel
+public class NewUIModel : PageModel
 {
     public void OnGet()
     {
