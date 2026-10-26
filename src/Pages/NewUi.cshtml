@@ -1,0 +1,240 @@
+@page
+@model IndexModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/dist/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    .uninitialised {
+      display: none;
+    }
+  </style>
+  <environment names="Production">
+    <link rel="stylesheet" asp-href-include="~/dist/assets/new-ui-*.css" />
+  </environment>
+</head>
+<body>
+  <div x-data="app" 
+       class="bg-white p-4 min-h-screen">
+    <div class="bg-white fixed z-10 -mt-4 -mx-4 px-4 w-full border-b border-gray-200 shadow-md/20">
+      <h1 class="text-2xl mt-2 mb-4 font-bold">Tuesday session 20th June 2026</h1>
+      <div class="bg-blue-200 -mx-4 min-h-64 relative inset-shadow-sm/20">
+        <div class="absolute right-4 bottom-2 flex">
+          <button class="ml-2">
+            <svg class="bi" width="16" height="16" fill="currentColor">
+              <use href="#zoom-out" />
+            </svg>
+          </button>
+          <button class="ml-2">
+            <svg class="bi" width="16" height="16" fill="currentColor">
+              <use href="#zoom-in" />
+            </svg>
+          </button>
+          <button class="ml-2" :disabled="false">
+            <svg class="bi" width="16" height="16" fill="currentColor">
+              <use href="#pencil-fill" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="mt-2 mb-2 flex items-center">
+        <button class="mr-2">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#skip-start-fill" />
+          </svg>
+        </button>
+        <button class="mr-2" @@click="skipPrevious()" :disabled="skipPreviousDisabled()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#skip-backward-fill" />
+          </svg>
+        </button>
+        <button class="mr-2" :class="{'selected': playing}" @@click="togglePlay()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#play-fill" />
+          </svg>
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#pause-fill" />
+          </svg>
+        </button>
+        <button class="mr-2" @@click="skipNext()" :disabled="skipNextDisabled()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#skip-forward-fill" />
+          </svg>
+        </button>
+        <button class="mr-4" :class="{'selected': looping}" @@click="toggleLoop()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#repeat" />
+          </svg>
+        </button>
+        <div class="mr-2">Playback speed:</div>
+
+        <button class="rounded-r-none" @@click="playbackSpeed.dec()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#dash" />
+          </svg>
+        </button>
+        <input type="text" class="rounded-none bg-white w-16 text-center p-0" 
+          x-model="playbackSpeed.text"
+          x-ref="playbackSpeedInput"
+          @@focus="$refs.playbackSpeedInput.select()"
+          @@change="normalizePlaybackSpeed()" />
+        <button class="rounded-l-none" @@click="playbackSpeed.inc()">
+          <svg class="bi" width="16" height="16" fill="currentColor">
+            <use href="#plus" />
+          </svg>
+        </button>
+
+        <div class="ml-auto flex items-baseline">
+          <div class="mr-2 pt-1">Play:</div>
+          <button class="mr-2" :class="{'selected': mode == 'full'}" :disabled="mode == 'full'" @@click="setMode('full')">
+            Full audio
+          </button>
+          <button class="mr-2" :class="{'selected': mode == 'tune'}" :disabled="mode == 'tune'" @@click="setMode('tune')">
+            Tune
+          </button>
+          <button class="" :class="{'selected': mode == 'section'}" :disabled="mode == 'section'" @@click="setMode('section')">
+            Section
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="mt-86 -mx-4 px-4" x-show="mode == 'tune' || mode == 'section'">
+      <template x-for="tune in tunes.items">
+        <div x-data class="-mx-4 px-4 relative z-5 border-y" :class="{
+          'bg-blue-200 border-blue-300': tune.isCurrent, 
+          'bg-white border-transparent': !tune.isCurrent, 
+        }"
+          :id="'tune-' + tune.name.replace(' ', '-')"
+          x-init="$watch('tune.isCurrent', isCurrent => {
+              if(mode == 'tune' && isCurrent) {
+                setTimeout(function() {
+                  var el = document.getElementById('tune-' + tune.name.replace(' ', '-'));
+                  window.scroll(0, el.offsetTop - 90 * 4)
+                }, 0);
+              }
+            })">
+          <div class="flex items-center -mx-4 px-4 bg-blue-200" :class="{
+              'bg-blue-200': tune.isCurrent, 
+              'bg-white': !tune.isCurrent, 
+              'sticky top-90 shadow-md/20 ': mode == 'section' && tune.isCurrent
+            }">
+            <div class="">
+              <h2 class="text-lg mt-2 mb-2 font-bold" x-text="tune.name"></h2>
+            </div>
+            <div class="ml-auto flex" x-show="mode == 'tune' && tune.isCurrent">
+              <button class="rounded-r-none" @@click="tune.startTime.dec()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#dash" />
+                </svg>
+              </button>
+              <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                x-model="tune.startTime.text"
+                x-ref="tuneStartTimeInput"
+                @@focus="$refs.tuneStartTimeInput.select()"
+                @@change="tune.startTime.normalize()" />
+              <button class="rounded-l-none" @@click="tune.startTime.inc()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#plus" />
+                </svg>
+              </button>
+
+              <div class="ml-2 mr-2">-</div>
+              
+              <button class="rounded-r-none" @@click="tune.endTime.dec()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#dash" />
+                </svg>
+              </button>
+              <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                x-model="tune.endTime.text"
+                x-ref="tuneEndTimeInput"
+                @@focus="$refs.tuneEndTimeInput.select()"
+                @@change="tune.endTime.normalize()" />
+              <button class="rounded-l-none" @@click="tune.endTime.inc()">
+                <svg class="bi" width="16" height="16" fill="currentColor">
+                  <use href="#plus" />
+                </svg>
+              </button>
+            </div>
+            <div class="ml-auto flex" x-show="mode != 'tune' || !tune.isCurrent">
+              <div class="" x-text="tune.startTime.text"></div>
+              <div class="">&nbsp;-&nbsp;</div>
+              <div x-text="tune.endTime.text"></div>
+            </div>
+          </div>
+          <div class="-mx-4 px-4" x-show="mode == 'section' && tune.isCurrent">
+            <template x-for="section in tune.sections.items">
+              <div x-data class="border-y -mx-4 px-4 flex items-center" :class="{'bg-blue-300 border-blue-400': section.isCurrent, 'border-transparent': !section.isCurrent}"
+                :id="'sec-' + tune.name.replace(' ', '-') + '-' + section.name.replace(' ', '-')"
+                x-init="$watch('section.isCurrent', isCurrent => {
+                    if(mode == 'section' && isCurrent) {
+                      setTimeout(function() {
+                        var el = document.getElementById('sec-' + tune.name.replace(' ', '-') + '-' + section.name.replace(' ', '-'));
+                        window.scroll(0, el.parentElement.parentElement.offsetTop - 90 * 4 + el.offsetTop - el.parentElement.offsetTop)
+                      }, 0);
+                    }
+                  })">
+                <div class="">
+                  <h2 class="text-lg mt-2 mb-2 font-bold" x-text="section.name"></h2>
+                </div>
+                <div class="ml-auto flex" x-show="section.isCurrent">
+                  <button class="rounded-r-none" @@click="section.startTime.dec()">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#dash" />
+                    </svg>
+                  </button>
+                  <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                    x-model="section.startTime.text"
+                    x-ref="sectionStartTimeInput"
+                    @@focus="$refs.sectionStartTimeInput.select()"
+                    @@change="section.startTime.normalize()" />
+                  <button class="rounded-l-none" @@click="section.startTime.inc()">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#plus" />
+                    </svg>
+                  </button>
+
+                  <div class="ml-2 mr-2">-</div>
+                  
+                  <button class="rounded-r-none" @@click="section.endTime.dec()">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#dash" />
+                    </svg>
+                  </button>
+                  <input type="text" class="rounded-none bg-white w-24 text-center p-0" 
+                    x-model="section.endTime.text"
+                    x-ref="sectionEndTimeInput"
+                    @@focus="$refs.sectionEndTimeInput.select()"
+                    @@change="section.endTime.normalize()" />
+                  <button class="rounded-l-none" @@click="section.endTime.inc()">
+                    <svg class="bi" width="16" height="16" fill="currentColor">
+                      <use href="#plus" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="ml-auto flex" x-show="!section.isCurrent">
+                  <div class="" x-text="section.startTime.text"></div>
+                  <div class="">&nbsp;-&nbsp;</div>
+                  <div x-text="section.endTime.text"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+      @* <div class="-mx-4 bg-white h-100"></div> *@
+    </div>
+  </div>
+  <div id="all" hidden ></div>
+  <environment names="Development">
+      <script type="module" src="/dist/ts/new-ui.ts"></script>
+  </environment>
+  <environment names="Production">
+    <script type="module" asp-src-include="~/dist/assets/new-ui-*.js"></script>
+  </environment>
+</body>
