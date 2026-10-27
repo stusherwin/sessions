@@ -11,8 +11,8 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       input: {
-        main: './src/ts/main.ts',
-        newUi: './src/ts/new-ui.ts',
+        'main': './src/ts/main.ts',
+        'new-ui': './src/ts/new-ui.ts',
       }
     }  
   },
