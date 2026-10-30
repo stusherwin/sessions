@@ -13,7 +13,7 @@ export class RegionManager {
   private performances: PerformanceRegionCollection
   private initialPerformanceId: string | undefined
   private regions: RegionsPlugin
-  private editing: boolean = false
+  private editing: string | undefined = undefined
   private adding: boolean = false
   private playing: boolean = false
   private tuneMode: boolean = false
@@ -297,18 +297,20 @@ export class RegionManager {
     }
   }
 
-  private onAppEditingStart() { log(arguments)()
-    this.editing = true
+  private onAppEditingStart(editing: string) { log(arguments)()
+    this.editing = editing
     
-    var rs = this.regions.getRegions()
-    for(var i = 0; i < rs.length; i++) {
-      rs[i].setOptions({resize: true})
-      var el = rs[i].element
-      if(el) {
-        el.part.add('sx-editable')
-        for(var j = 0; j < el.children.length; j++) {
-          el.children[j].part.add('sx-editable')
-        }
+    var region = this.findRegion(editing)
+    if(!region) {
+      return
+    }
+
+    region.setOptions({resize: true})
+    var el = region.element
+    if(el) {
+      el.part.add('sx-editable')
+      for(var j = 0; j < el.children.length; j++) {
+        el.children[j].part.add('sx-editable')
       }
     }
   }
@@ -326,7 +328,7 @@ export class RegionManager {
       }
     }
 
-    this.editing = false
+    this.editing = undefined
   }
 
   private onAppAddingStart() { log(arguments)()

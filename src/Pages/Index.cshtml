@@ -20,7 +20,7 @@
 <body>
     <div x-data="app" 
        x-init="$watch('data.sessions', () => data.save()); $watch('data.tunes', () => data.save()); $watch('data.performances', () => data.save())"
-       class="uninitialised p-4 min-h-screen" :class="{ 'uninitialised': !initialised, 'editing': editing }"
+       class="uninitialised p-4 min-h-screen" :class="{ 'uninitialised': !initialised }"
        @@sx:task-progress.window="onTaskProgress($event.detail)">
 
     <div class="flex items-center">
@@ -308,66 +308,132 @@
            @@sx:current-performance-changed.window="onCurrentPerformanceChanged($event.detail)"
            @@sx:playing.window="playing = true"
            @@sx:stopped.window="playing = false">
-        <h1 class="text-2xl mt-2 mb-4 font-bold" x-show="!editing" x-text="pageState.data.session.name"></h1>
-        <textarea wrap="hard" x-show="editing" class="text-2xl font-bold mt-1 mb-0 w-full" :rows="Math.ceil(pageState.data.session.name.length / 50)" x-model="pageState.data.session.name"></textarea>
+        <h1 class="text-2xl mt-2 mb-4 font-bold" x-text="pageState.data.session.name"></h1>
         <div x-show="!pageState.data.ready">
           Loading: <span x-text="pageState.data.loading"></span>%
         </div>
         <div x-show="pageState.data.ready">
           <div class="relative -mx-4 sm:mx-0">
-            <div :data-session-id="pageState.data.session.id" class="waveform" :class="{'mt-4': !editing, 'mt-2': editing}"></div>
-            <div class="absolute left-0 right-0 bottom-2 z-10 flex" 
-                   x-show="editing">
-              <div class="button-group ml-auto mr-auto p-2 rounded"
-                :class="{'bg-white/50': !editing,'bg-black/50': editing}">
-                <button @@click="toggleAdding()" class="shadow-md shadow-black/50" :class="{
-                  'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !adding,
-                  'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': adding
-                }">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#plus" />
-                  </svg>
-                </button>
-                <button @@click="splitCurrentTune()" class="shadow-md shadow-black/50" 
-                  :disabled="!pageState.data.currentPerformance">
-                  <svg class="bi" width="16" height="16" fill="currentColor">
-                    <use href="#split-current" />
-                  </svg>
-                </button>
-                <button @@click="breakFromPrevious()" class="shadow-md shadow-black/50 ml-4" 
+            <div :data-session-id="pageState.data.session.id" class="waveform mt-2"></div>
+
+            <div class="absolute left-0 right-0 bottom-2 z-10 flex">
+              <div class="button-group ml-auto mr-auto p-2 rounded bg-white/50">
+              </div>
+            </div>
+
+            <div class="absolute left-0 right-0 bottom-2 z-10 flex">
+              <div class="button-group ml-auto mr-auto p-2 rounded bg-white/50">
+                <button @@click="breakFromPrevious()" class="shadow-md shadow-black/50 ml-4" x-show="editing" 
                   :disabled="!pageState.data.canBreakPrevious">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#break-from-previous" />
                   </svg>
                 </button>
-                <button @@click="breakFromNext()" class="shadow-md shadow-black/50" 
+                <button @@click="breakFromNext()" class="shadow-md shadow-black/50"  x-show="editing"
                   :disabled="!pageState.data.canBreakNext">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#break-from-next" />
                   </svg>
                 </button>
-                <button @@click="nudgeStartBackward()" class="shadow-md shadow-black/50 ml-4" 
+                <button @@click="nudgeStartBackward()" class="shadow-md shadow-black/50 ml-4"  x-show="editing"
                   :disabled="!pageState.data.currentPerformance">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#nudge-start-backward" />
                   </svg>
                 </button>
-                <button @@click="nudgeStartForward()" class="shadow-md shadow-black/50" 
+                <button @@click="nudgeStartForward()" class="shadow-md shadow-black/50"  x-show="editing"
                   :disabled="!pageState.data.currentPerformance">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#nudge-start-forward" />
                   </svg>
                 </button>
-                <button @@click="nudgeEndBackward()" class="shadow-md shadow-black/50" 
+                <button @@click="nudgeEndBackward()" class="shadow-md shadow-black/50"  x-show="editing"
                   :disabled="!pageState.data.currentPerformance">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#nudge-end-backward" />
                   </svg>
                 </button>
-                <button @@click="nudgeEndForward()" class="shadow-md shadow-black/50" 
+                <button @@click="nudgeEndForward()" class="shadow-md shadow-black/50"  x-show="editing"
                   :disabled="!pageState.data.currentPerformance">
                   <svg class="bi" width="16" height="16" fill="currentColor">
                     <use href="#nudge-end-forward" />
+                  </svg>
+                </button>
+                <button @@click="toggleAdding()" x-show="!editing" class="shadow-md shadow-black/50" :class="{
+                  'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !adding,
+                  'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': adding
+                }">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#plus" x-show="!adding" />
+                    <use href="#x" x-show="adding" />
+                  </svg>
+                </button>
+                <button @@click="toggleEditing()" x-show="!adding" class="shadow-md shadow-black/50 ml-4"
+                  :disabled="!pageState.data.currentPerformance">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#pencil-fill" x-show="!editing" />
+                    <use href="#x" x-show="editing" />
+                  </svg>
+                </button>
+                <button @@click="splitCurrentTune()" x-show="!adding && !editing" class="shadow-md shadow-black/50" 
+                  :disabled="!pageState.data.currentPerformance">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#split-current" />
+                  </svg>
+                </button>
+                <button x-show="!adding && !editing" class="col-3" @@click="deletePerformance(pageState.data.currentPerformance)"
+                  :disabled="!pageState.data.currentPerformance">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#trash-fill" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="absolute left-0 right-0 -bottom-6 z-10 flex">
+              <div class="button-group ml-auto mr-auto p-2 rounded bg-white/50">
+                <button @@click="skipToStart()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#skip-start-fill" />
+                  </svg>
+                </button>
+                <button @@click="skipBackward()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#skip-backward-fill" />
+                  </svg>
+                </button>
+                <button @@click="playPause()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use x-show="!playing" href="#play-fill" />
+                    <use x-show="playing" href="#pause-fill" />
+                  </svg>
+                </button>
+                <button @@click="skipForward()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#skip-forward-fill" />
+                  </svg>
+                </button>
+                <button @@click="skipToEnd()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#skip-end-fill" />
+                  </svg>
+                </button>
+                <button @@click="nudgeBackward()" class="shadow-md shadow-black/50 ml-4">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#arrow-bar-left" />
+                  </svg>
+                </button>
+                <button @@click="nudgeForward()" class="shadow-md shadow-black/50">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#arrow-bar-right" />
+                  </svg>
+                </button>
+                <button @@click="toggleTuneMode()" class="shadow-md shadow-black/50 ml-4" :class="{
+                  'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !tuneMode,
+                  'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': tuneMode
+                }">
+                  <svg class="bi" width="16" height="16" fill="currentColor">
+                    <use href="#music-note-list" />
                   </svg>
                 </button>
               </div>
@@ -386,60 +452,10 @@
                 </button>
               </div>
             </div>
-            <button @@click="toggleEditing()" class="absolute top-1 right-4 z-10 shadow-md shadow-black/50">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#pencil-fill" x-show="!editing" />
-                <use href="#x" x-show="editing" />
-              </svg>
-            </button>
-          </div>
-
-          <div class="button-group"
-            :class="{'bg-white/50': !editing,'bg-black/50': editing}">
-            <button @@click="skipToStart()" class="shadow-md shadow-black/50 ml-auto">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-start-fill" />
-              </svg>
-            </button>
-            <button @@click="skipBackward()" class="shadow-md shadow-black/50">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-backward-fill" />
-              </svg>
-            </button>
-            <button @@click="playPause()" class="shadow-md shadow-black/50">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use x-show="!playing" href="#play-fill" />
-                <use x-show="playing" href="#pause-fill" />
-              </svg>
-            </button>
-            <button @@click="skipForward()" class="shadow-md shadow-black/50">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-forward-fill" />
-              </svg>
-            </button>
-            <button @@click="skipToEnd()" class="shadow-md shadow-black/50">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#skip-end-fill" />
-              </svg>
-            </button>
-            <button @@click="nudgeBackward()" class="shadow-md shadow-black/50 ml-4">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#arrow-bar-left" />
-              </svg>
-            </button>
-            <button @@click="nudgeForward()" class="shadow-md shadow-black/50">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#arrow-bar-right" />
-              </svg>
-            </button>
-            <button @@click="toggleTuneMode()" class="shadow-md shadow-black/50 ml-4 mr-auto" :class="{
-              'bg-gray-300 border-gray-400 text-black hover:bg-black hover:border-black hover:text-white': !tuneMode,
-              'hover:bg-gray-300 hover:border-gray-400 hover:text-black bg-black border-white text-white': tuneMode
-            }">
-              <svg class="bi" width="16" height="16" fill="currentColor">
-                <use href="#music-note-list" />
-              </svg>
-            </button>
+            <div class="absolute top-12 bottom-12 left-2 z-10 flex flex-col">
+              <div class="flex flex-col p-2 mt-auto mb-auto rounded">
+              </div>
+            </div>
           </div>
 
           <ul class="mt-4 col-span-full grid grid-cols-[1fr_max-content_max-content] gap-y-4 gap-x-2">
@@ -447,18 +463,18 @@
               <li x-data x-init="$watch('performance.tuneName', name => updatePerformanceTuneName(pageState.data.session.id, performance.id, name))"
                   class="col-span-full grid grid-cols-subgrid">
                 <h2 class="col-start-1 col-span-2 mt-0 mb-0" :class="{'font-bold': pageState.data.currentPerformance == performance.id}">
-                  <a x-show="!editing" href="#" x-text="performance.tuneName" @@click="changeCurrentTune(pageState.data.session.id, performance.id)"></a>
-                  <input x-show="editing" type="text" class="w-full" x-model="performance.tuneName"
+                  <a x-show="editing != performance.id" href="#" x-text="performance.tuneName" @@click="changeCurrentTune(pageState.data.session.id, performance.id)"></a>
+                  <input x-show="editing == performance.id" type="text" class="w-full" x-model="performance.tuneName"
                     @@focus="$event.target.select()" />
                 </h2>
                 <div class="col-3">
-                  <button x-show="editing" class="col-3" @@click="deletePerformance(performance.id)">
+                  <button x-show="editing == performance.id" class="col-3" @@click="deletePerformance(performance.id)">
                     <svg class="bi" width="16" height="16" fill="currentColor">
                       <use href="#trash-fill" />
                     </svg>
                   </button>
                 </div>
-                <div class="col-span-full mt-2 mb-2" x-show="editing">
+                <div class="col-span-full mt-2 mb-2" x-show="editing == performance.id">
                   <select @@change="changeTune(pageState.data.session.id, performance.id, $event.target.value)">
                     <template x-for="t in data.tunes">
                       <option :value="t.id" x-text="t.name" :selected="t.id == performance.tuneId"></option>

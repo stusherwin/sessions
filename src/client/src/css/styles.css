@@ -219,17 +219,17 @@
 }
 
 ::part(sx-editable region) {
-  background: rgba(255 0 0 / 0.3);
+  /* background: rgba(255 0 0 / 0.3); */
   pointer-events: all;
 }
 
 ::part(sx-editable region)::before,
 ::part(sx-editable region)::after {
-  border-color: white;
+  /* border-color: white; */
 }
 
 ::part(sx-editable region sx-current) {
-  background: rgba(255 0 0 / 0.55);
+  /* background: rgba(255 0 0 / 0.55); */
 }
 
 ::part(sx-editable region-handle) {
@@ -251,14 +251,6 @@
 ::part(sx-editable region-handle-right) {
   right: calc(0 - (20px / 2));
 }
-
-/* ::part(region-handle-left sx-editable) {
-  border-left: 2px solid white;
-}
-
-::part(region-handle-right sx-editable) {
-  border-right: 2px solid white;
-} */
 
 ::part(region-handle-left sx-editable):hover,
 ::part(region-handle-right sx-editable):hover  {

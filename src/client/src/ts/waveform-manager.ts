@@ -18,7 +18,7 @@ export class WaveformManager {
   private subscriptions: (() => void)[] = []
   // private zoomTimeout : number | undefined = undefined
   // private zooming = false
-  private editing = false
+  private editing: string | undefined = undefined
   private scrolling = false
   private scrollEnableTimeout: number | undefined = undefined
   private autoScrollEnableTimeout: number | undefined =  undefined
@@ -47,7 +47,8 @@ export class WaveformManager {
 
     subscribe(this.ws.on('loading', this.onWsLoading.bind(this)))
     subscribe(this.ws.once('decode', this.onWsDecode.bind(this)))
-    subscribe(this.ws.once('redrawcomplete', this.onWsReady.bind(this)))
+    subscribe(this.ws.once('redrawcomplete', this.onWsRedraw.bind(this)))
+    subscribe(this.ws.once('ready', this.onWsReady.bind(this)))
     subscribe(this.ws.on('play', this.onWsPlay.bind(this)))
     subscribe(this.ws.on('pause', this.onWsPause.bind(this)))
     subscribe(this.ws.on('finish', this.onWsFinish.bind(this)))
@@ -91,6 +92,11 @@ export class WaveformManager {
   }
 
   private onWsReady() { log(arguments)()
+    console.log('ready')
+  }
+
+  private onWsRedraw() { log(arguments)()
+    console.log('redraw')
     log('duration: ' + this.ws.getDuration())();
     var peaks = this.ws.exportPeaks()
     log(peaks)()
@@ -239,34 +245,34 @@ export class WaveformManager {
     this.updateScrollState()
   }
 
-  private onAppEditingStart() { log(arguments)()
+  private onAppEditingStart(editing: string) { log(arguments)()
     if(this.scrollEnableTimeout) {
       clearTimeout(this.scrollEnableTimeout)
     }
 
-    this.editing = true
+    this.editing = editing
     // this.scrollPosition = this.ws.getScroll()
 
-    this.ws.setOptions({
-      waveColor: 'white',
-      progressColor: 'white',
-      cursorColor: 'red'
-    })
+    // this.ws.setOptions({
+    //   waveColor: 'white',
+    //   progressColor: 'white',
+    //   cursorColor: 'red'
+    // })
 
     this.updateScrollState()
     // this.container.classList.add('inverted')
   }
 
   private onAppEditingStop() { log(arguments)()
-    this.ws.setOptions({
-      waveColor: 'black',
-      progressColor: 'black',
-      cursorColor: 'red'
-    })
+    // this.ws.setOptions({
+    //   waveColor: 'black',
+    //   progressColor: 'black',
+    //   cursorColor: 'red'
+    // })
 
     // this.container.classList.remove('inverted')
     // this.scrollPosition = undefined
-    this.editing = false
+    this.editing = undefined
 
     this.scrollEnableTimeout = setTimeout(() => {
       this.updateScrollState()

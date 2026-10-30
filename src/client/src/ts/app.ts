@@ -26,7 +26,7 @@ interface App {
   data: AppDataManager
   pageState: PageState
   playing: boolean
-  editing: boolean
+  editing: string | undefined
   adding: boolean
   tuneMode: boolean
   fileUpload: string | undefined
@@ -77,7 +77,7 @@ const App = defineComponent<unknown, App>(() => ({
   data: new AppDataManager, 
   pageState: { page: 'sessions' } as PageState,
   playing: false,
-  editing: false,
+  editing: undefined,
   adding: false,
   tuneMode: false,
   fileUpload: undefined,
@@ -111,7 +111,7 @@ const App = defineComponent<unknown, App>(() => ({
         canBreakPrevious: false
       }
     }
-    this.editing = false
+    this.editing = undefined
     this.adding = false
 
     var performances = this.data.performances.filter(p => p.sessionId == sessionId)
@@ -130,7 +130,7 @@ const App = defineComponent<unknown, App>(() => ({
       page: 'tune',
       data: tune
     }
-    this.editing = false
+    this.editing = undefined
     this.adding = false
   },
 
@@ -142,7 +142,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'sessions'
     }
-    this.editing = false
+    this.editing = undefined
     this.adding = false
   },
 
@@ -154,7 +154,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'tunes'
     }
-    this.editing = false
+    this.editing = undefined
     this.adding = false
   },
 
@@ -166,7 +166,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'newSession'
     }
-    this.editing = false
+    this.editing = undefined
     this.adding = false
   },
 
@@ -178,7 +178,7 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState = {
       page: 'backups'
     }
-    this.editing = false
+    this.editing = undefined
     this.adding = false
   },
 
@@ -268,9 +268,17 @@ const App = defineComponent<unknown, App>(() => ({
   },
 
   toggleEditing() { log(arguments)()
-    this.editing = !this.editing
+    if(this.pageState.page != 'session') {
+      return
+    }
+
+    if(!this.editing) {
+      this.editing = this.pageState.data.currentPerformance
+    } else {
+      this.editing = undefined
+    }
     if(this.editing) {
-      this.$dispatch('sx:editing-start')
+      this.$dispatch('sx:editing-start', this.editing)
     } else {
       this.$dispatch('sx:editing-stop')
       this.adding = false
@@ -357,6 +365,12 @@ const App = defineComponent<unknown, App>(() => ({
     }
 
     this.$dispatch('sx:performance-deleted', performance)
+    
+    if(this.editing) {
+      this.toggleEditing()
+    } else if(this.adding) {
+      this.toggleAdding()
+    }
   },
 
   deleteSession(sessionId: string) { log(arguments)()
@@ -527,6 +541,12 @@ const App = defineComponent<unknown, App>(() => ({
     this.pageState.data.currentPerformance = performanceId
     this.pageState.data.canBreakNext = canBreakNext
     this.pageState.data.canBreakPrevious = canBreakPrevious
+    
+    if(this.editing) {
+      this.toggleEditing()
+    } else if(this.adding) {
+      this.toggleAdding()
+    }
   },
 
   onTaskProgress(detail: {taskId: string, percentComplete: number}) { log(arguments)()
